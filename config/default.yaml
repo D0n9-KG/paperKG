@@ -1,0 +1,156 @@
+llm:
+  providers:
+    openrouter:
+      api_key_env: OPENROUTER_API_KEY
+      base_url: https://openrouter.ai/api/v1/chat/completions
+      headers:
+        HTTP-Referer: https://github.com/paperKG
+        X-Title: PaperKG
+    deepseek:
+      api_key_env: DEEPSEEK_API_KEY
+      base_url: https://api.deepseek.com/chat/completions
+      headers: {}
+  default_provider: deepseek
+  agents:
+    metadata:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 2000
+      temperature: 0.2
+    background:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 4000
+      temperature: 0.3
+    methodology:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 3000
+      temperature: 0.3
+    results:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 5000
+      temperature: 0.3
+    refinement:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 8000
+      temperature: 0.2
+    json_repair:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 4000
+      temperature: 0.1
+    multimedia_content:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 8000
+      temperature: 0.1
+    keywords_extractor:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 1000
+      temperature: 0.1
+    quality_rater:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 2000
+      temperature: 0.0
+    content_refiner:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 6000
+      temperature: 0.2
+    citation_purpose:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 300
+      temperature: 0.2
+
+workflow:
+  enable_refinement: false
+  max_refinement_rounds: 2
+  enable_async: true
+  api_timeout: 300
+  retry_attempts: 3
+  retry_delay: 2
+  batch_parallel_limit: 3
+  api_concurrent_limit: 10
+
+context:
+  max_context_length: 500000
+  refinement_context_length: 500000
+  refinement_result_length: 20000
+
+logging:
+  output_dir: logs
+  level: INFO
+  console_format: "%(levelname)s: %(message)s"
+  file_format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+  enable_progress_bar: true
+  min_log_level_console: WARNING
+  min_log_level_file: DEBUG
+
+file_processing:
+  text_encoding: utf-8
+
+output:
+  default_output_dir: output
+  indent: 2
+  ensure_ascii: false
+
+source_files:
+  default_source_dir: source_files
+  supported_extensions:
+    - .md
+    - .markdown
+    - .txt
+
+repair:
+  mode: strict
+  max_repair_iterations: 2
+  enable_json_repair_library: true
+  enable_schema_repair: true
+  max_repair_chars: 40000
+  on_failure: return_empty
+  enable_rule_based_repair: true
+  enable_cache: false
+  log_repair_details: true
+
+quality:
+  enable: true
+  use_llm: true
+  rule_weight: 0.4
+  llm_weight: 0.6
+  threshold: 75
+  refine_rounds: 1
+
+crossref:
+  enable: true
+  user_agent: paperKG/1.0
+  timeout: 10
+  max_retries: 5
+  retry_delay: 1
+  concurrent_requests_limit: 3
+  enable_cache: true
+  cache_ttl: 3600
+  fallback_to_llm: true
+  query_strategy: auto
+  empty_string_for_missing: true
+  simple_llm_fallback: true
+
+neo4j:
+  enable: true
+  mapping_path: config/neo4j_mapping.json
+
+keywords:
+  enable: true
+  max_keywords: 12
+  language: en
+  use_llm: true
+
+citation_purpose:
+  enable: true
+  max_refs: 50
+  context_window: 1

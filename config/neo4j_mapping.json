@@ -1,0 +1,9 @@
+﻿{
+  "mode": "paperkg_v2",
+  "paper_node_label": "Paper",
+  "unique_keys": ["doi", "citation_hash"],
+  "reference_relationship": "CITES",
+  "evidence_node_label": "Evidence",
+  "source_excerpt_node_label": "SourceExcerpt",
+  "notes": "Paper nodes store metadata only; narrative and media fields are mapped as separate nodes."
+}

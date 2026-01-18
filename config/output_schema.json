@@ -1,0 +1,1574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "paperkg-output-schema",
+  "title": "PaperKG Output Schema",
+  "type": "object",
+  "properties": {
+    "paper_metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "论文标题 | 提取完整的论文标题，保留原文格式和大小写"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "given_name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "作者名"
+              },
+              "family_name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "作者姓"
+              },
+              "full_name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "完整姓名"
+              },
+              "sequence": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "作者顺序"
+              },
+              "affiliations": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "机构名称"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "description": "作者机构"
+              },
+              "orcid": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ORCID标识符"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "作者列表 | 提取所有作者的详细信息，包括姓名、机构、ORCID等。若无法获取，则返回空数组 []"
+        },
+        "publication_year": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "发表年份 | 提取4位数年份（如 \"2024\"）。若无法确定，返回 null"
+        },
+        "journal_or_conference": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "期刊或会议名称"
+            },
+            "short_title": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "简称"
+            },
+            "volume": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "卷号"
+            },
+            "issue": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "期号"
+            },
+            "pages": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "页码"
+            },
+            "article_number": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "文章编号"
+            }
+          },
+          "additionalProperties": false,
+          "description": "期刊或会议信息 | 提取期刊或会议的详细信息，包括标题、卷号、期号等"
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "DOI链接 | 提取完整的DOI链接或DOI标识符。若无DOI，返回 null"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "DOI URL | DOI的完整URL链接"
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "副标题"
+        },
+        "short_title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "短标题"
+        },
+        "publication_date": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "published": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer"
+              },
+              "description": "出版日期数组"
+            },
+            "published_online": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer"
+              },
+              "description": "在线出版日期"
+            },
+            "published_print": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer"
+              },
+              "description": "印刷版出版日期"
+            },
+            "issued": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer"
+              },
+              "description": "发布日期"
+            }
+          },
+          "additionalProperties": false,
+          "description": "出版日期"
+        },
+        "identifiers": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "issn": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "ISSN"
+            },
+            "eissn": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "电子ISSN"
+            },
+            "isbn": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "ISBN"
+            }
+          },
+          "additionalProperties": false,
+          "description": "标识符"
+        },
+        "publisher": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "出版商名称"
+            },
+            "location": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "出版商地点"
+            },
+            "member_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "成员ID"
+            }
+          },
+          "additionalProperties": false,
+          "description": "出版商信息"
+        },
+        "categories": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "类型"
+            },
+            "subtype": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "子类型"
+            },
+            "subjects": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "主题"
+            },
+            "categories": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "分类"
+            }
+          },
+          "additionalProperties": false,
+          "description": "分类信息"
+        },
+        "citation_metrics": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "crossref_citations": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Crossref引用数"
+            },
+            "references_count": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "参考文献数量"
+            },
+            "score": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "评分"
+            }
+          },
+          "additionalProperties": false,
+          "description": "引用指标"
+        },
+        "open_access": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "is_open_access": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "是否开放获取"
+            },
+            "status": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "状态"
+            },
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "URL"
+            },
+            "license": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "date-parts": {
+                        "type": [
+                          "string",
+                          "number",
+                          "integer",
+                          "boolean",
+                          "object",
+                          "array",
+                          "null"
+                        ],
+                        "description": "日期部分（通常为数组的数组，如[[2024, 1, 1]]）"
+                      },
+                      "date-time": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "日期时间字符串"
+                      },
+                      "timestamp": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "description": "时间戳"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "许可证开始时间"
+                  },
+                  "content-version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "内容版本"
+                  },
+                  "delay-in-days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "description": "延迟天数"
+                  },
+                  "URL": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "许可证URL"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "description": "许可证"
+            }
+          },
+          "additionalProperties": false,
+          "description": "开放获取信息"
+        },
+        "funding": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "funder": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "资助机构"
+              },
+              "funder_doi": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "资助机构DOI"
+              },
+              "award": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "奖项"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "资助信息"
+        },
+        "metadata_source": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "primary_source": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "主要来源"
+            },
+            "crossref_retrieved": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Crossref检索时间"
+            },
+            "crossref_has_data": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "是否有Crossref数据"
+            },
+            "llm_supplemented": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "是否LLM补充"
+            }
+          },
+          "additionalProperties": false,
+          "description": "元数据来源"
+        },
+        "keywords": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "关键词 | 提取论文中明确列出的关键词。若无关键词部分，返回空数组 []"
+        },
+        "abstract": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "摘要 | 提取完整的摘要原文，保留换行和段落结构。若无摘要，返回 null"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "authors"
+      ]
+    },
+    "research_narrative": {
+      "type": "object",
+      "properties": {
+        "background": {
+          "type": "object",
+          "properties": {
+            "state_of_the_art_summary": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "领域现状总结内容 | 用2-4句话概括当前研究领域的整体状况，包括主流方法、已有成果和存在的挑战"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "支撑该总结的原文片段"
+                },
+                "location_hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文位置提示（如'引言第2段'、'背景部分'等）"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "领域现状总结"
+            },
+            "foundational_works": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "description": "文献标识值（优先输出数字标号，支持单个数字如 '5'、范围如 '4~9'、多个数字如 '5,7,9'；如果找不到数字标号，则输出完整的引用信息如 'Smith et al., 2020'） | 优先提取数字标号，支持多种格式：1) 单个数字如 '[5]' → '5'；2) 范围如 '[4-9]' 或 '[4~9]' → '4~9'；3) 多个数字如 '[5,7,9]' → '5,7,9'；4) 作者+数字如 'Smith et al. [12]' → '12'。如果找不到数字标号，则输出完整的引用信息如 'Smith et al., 2020'。尽量提取所有可能的数字标号，不要遗漏"
+                      },
+                      "source_excerpt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "原文中引用该文献的片段"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "description": "文献标识"
+                  },
+                  "contribution": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "description": "贡献描述（1-2句话）"
+                      },
+                      "source_excerpt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "原文中描述该贡献的片段"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "description": "该工作的核心贡献"
+                  },
+                  "limitation_or_gap_identified": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "value": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "局限性描述"
+                      },
+                      "source_excerpt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "原文中指出该局限性的片段"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "作者明确指出的该工作的局限性或未解决的问题"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "citation",
+                  "contribution"
+                ]
+              },
+              "description": "前置工作列表 | 尽可能完整地提取论文中引用的所有关键前置研究，不要遗漏，无论数量多少"
+            }
+          },
+          "required": [
+            "state_of_the_art_summary",
+            "foundational_works"
+          ],
+          "additionalProperties": false,
+          "description": "研究背景"
+        },
+        "problem_formulation": {
+          "type": "object",
+          "properties": {
+            "research_gap": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "研究空白描述 | 准确识别论文要解决的核心研究空白，这个空白应该能从前置工作的局限性中推导出来，用1-2句话清晰陈述"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中描述研究空白的片段"
+                },
+                "location_hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文位置提示"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "核心研究空白"
+            },
+            "research_questions": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "description": "研究问题内容"
+                  },
+                  "source_excerpt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "原文中提出该问题的片段"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ]
+              },
+              "description": "研究问题 | 列出论文明确提出的研究问题或要回答的科学问题，通常以问句形式呈现。如果论文未明确列出研究问题，返回空数组 []"
+            },
+            "hypothesis": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "statement": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "假设陈述内容（如无明确假设，返回 null）"
+                    },
+                    "source_excerpt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "原文中陈述假设的片段"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "假设陈述"
+                },
+                "key_assumptions": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "description": "假设条件描述"
+                      },
+                      "source_excerpt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "原文中描述该假设条件的片段"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "value"
+                    ]
+                  },
+                  "description": "支撑研究的关键前提假设 | 提取支撑假设的关键前提条件"
+                }
+              },
+              "additionalProperties": false,
+              "description": "研究假设"
+            },
+            "research_objectives": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "?????????????"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????????segment_map????? | ?????????????????????????? null"
+                    },
+                    "segment_map": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value_segment": {
+                            "type": "string",
+                            "description": "value ???????"
+                          },
+                          "excerpt": {
+                            "type": "string",
+                            "description": "???????"
+                          },
+                          "location_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????????????????"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "value_segment",
+                          "excerpt"
+                        ]
+                      },
+                      "description": "value????????????? | ? value ???????????????????????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "?????????value???????"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "???? | ?????????????????????????????????value???????????"
+            }
+          },
+          "required": [
+            "research_gap",
+            "research_objectives"
+          ],
+          "additionalProperties": false,
+          "description": "问题定义"
+        },
+        "methodology": {
+          "type": "object",
+          "properties": {
+            "approach_category": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "方法类别名称 | 从实验研究、理论分析、数值模拟、数据分析、计算建模、文献综述、案例研究、混合方法中选择最合适的1-2个"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中描述方法类别的片段"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "方法类别"
+            },
+            "method_description": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "方法描述内容 | 详细描述研究方法的核心内容（3-6句话），包括：采用的主要技术或方法、实验/模拟的设计思路、关键的技术创新点或改进"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中描述方法的片段"
+                },
+                "location_hint": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文位置提示（如'方法部分第3段'）"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "方法详细描述"
+            },
+            "data_and_materials": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "数据和材料描述 | 描述使用的数据集、实验材料或研究对象，包括：数据来源、数据规模和特征、实验材料的类型和规格。如果论文未明确说明，返回 null"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中描述数据和材料的片段"
+                }
+              },
+              "additionalProperties": false,
+              "description": "数据集和材料"
+            },
+            "evaluation_metrics": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "description": "评估指标名称"
+                  },
+                  "source_excerpt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "原文中提到该指标的片段"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ]
+              },
+              "description": "评估指标 | 列出论文中用于评估方法有效性的指标，例如：'准确率'、'均方根误差'、'F1分数'、'收敛速度'等。如果论文未明确提及评估指标，返回空数组 []"
+            },
+            "method_assumptions_and_limitations": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "assumptions": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "????????"
+                    },
+                    "source_excerpt": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "?????????????segment_map????? | ?????????????????????????? null"
+                        },
+                        "segment_map": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "value_segment": {
+                                "type": "string",
+                                "description": "value ???????"
+                              },
+                              "excerpt": {
+                                "type": "string",
+                                "description": "???????"
+                              },
+                              "location_hint": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????????????????????"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "value_segment",
+                              "excerpt"
+                            ]
+                          },
+                          "description": "value????????????? | ? value ???????????????????????"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "?????????value???????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "??????????????? | ?????????????????????????????value?null?segment_map?????"
+                },
+                "limitations": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????"
+                    },
+                    "source_excerpt": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "?????????????segment_map????? | ?????????????????????????? null"
+                        },
+                        "segment_map": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "value_segment": {
+                                "type": "string",
+                                "description": "value ???????"
+                              },
+                              "excerpt": {
+                                "type": "string",
+                                "description": "???????"
+                              },
+                              "location_hint": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????????????????????"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "value_segment",
+                              "excerpt"
+                            ]
+                          },
+                          "description": "value????????????? | ? value ???????????????????????"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "?????????value???????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "?????????????????? | ??????????????????????????????value?null?segment_map?????"
+                }
+              },
+              "additionalProperties": false,
+              "description": "方法的假设和局限性"
+            }
+          },
+          "required": [
+            "approach_category",
+            "method_description"
+          ],
+          "additionalProperties": false,
+          "description": "研究方法"
+        },
+        "results_and_findings": {
+          "type": "object",
+          "properties": {
+            "key_findings": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "description": "?????????????"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????????segment_map????? | ?????????????????????????? null"
+                    },
+                    "segment_map": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value_segment": {
+                            "type": "string",
+                            "description": "value ???????"
+                          },
+                          "excerpt": {
+                            "type": "string",
+                            "description": "???????"
+                          },
+                          "location_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????????????????"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "value_segment",
+                          "excerpt"
+                        ]
+                      },
+                      "description": "value????????????? | ? value ???????????????????????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "?????????value???????"
+                },
+                "supporting_evidence": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "description": "????"
+                      },
+                      "source_excerpt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "???????????"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "value"
+                    ]
+                  },
+                  "description": "???? | ?????????????????'??3'?'??2??'?'p < 0.05'????????????? '????????????'?"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false,
+              "description": "???? | ???????????????????????????????????????????????????"
+            },
+            "summary_of_results": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "结果总结内容 | 用2-4句话总结整体实验/研究结果，强调结果的主要趋势和模式"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中总结结果的片段"
+                }
+              },
+              "additionalProperties": false,
+              "description": "结果总结"
+            }
+          },
+          "required": [
+            "key_findings"
+          ],
+          "additionalProperties": false,
+          "description": "研究结果"
+        },
+        "discussion_and_conclusion": {
+          "type": "object",
+          "properties": {
+            "interpretation_of_results": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "结果解读内容 | 作者如何解释和诠释研究结果（2-4句话），结果的理论意义或机制解释。如果论文未提供深入解读，返回 null"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中解读结果的片段"
+                }
+              },
+              "additionalProperties": false,
+              "description": "结果解读"
+            },
+            "contribution_to_the_field": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "贡献描述 | 作者明确声明的对学术领域或实践应用的贡献，用1-3句话概括，例如：'提出了新的理论框架'、'首次发现了X现象'等"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中描述贡献的片段"
+                }
+              },
+              "additionalProperties": false,
+              "description": "对领域的贡献"
+            },
+            "limitations_of_this_work": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "???????"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????????segment_map????? | ?????????????????????????? null"
+                    },
+                    "segment_map": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value_segment": {
+                            "type": "string",
+                            "description": "value ???????"
+                          },
+                          "excerpt": {
+                            "type": "string",
+                            "description": "???????"
+                          },
+                          "location_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????????????????"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "value_segment",
+                          "excerpt"
+                        ]
+                      },
+                      "description": "value????????????? | ? value ???????????????????????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "?????????value???????"
+                }
+              },
+              "additionalProperties": false,
+              "description": "????? | ????????????????????????????????????value?null?segment_map?????"
+            },
+            "future_work_suggestions": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "??????????"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????????segment_map????? | ?????????????????????????? null"
+                    },
+                    "segment_map": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value_segment": {
+                            "type": "string",
+                            "description": "value ???????"
+                          },
+                          "excerpt": {
+                            "type": "string",
+                            "description": "???????"
+                          },
+                          "location_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????????????????"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "value_segment",
+                          "excerpt"
+                        ]
+                      },
+                      "description": "value????????????? | ? value ???????????????????????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "?????????value???????"
+                }
+              },
+              "additionalProperties": false,
+              "description": "?????? | ??????????????????????????????????????value?null?segment_map?????"
+            },
+            "final_conclusion": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "最终结论内容 | 提取论文的核心结论陈述（通常在结论部分的最后），用1-3句话概括，应该是作者对整篇论文的总结性陈述"
+                },
+                "source_excerpt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "原文中陈述结论的片段"
+                }
+              },
+              "additionalProperties": false,
+              "description": "最终结论"
+            }
+          },
+          "additionalProperties": false,
+          "description": "讨论与结论"
+        }
+      },
+      "required": [
+        "background",
+        "problem_formulation",
+        "methodology",
+        "results_and_findings",
+        "discussion_and_conclusion"
+      ],
+      "additionalProperties": false
+    },
+    "multimedia_content": {
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "object",
+          "description": "图片信息（按编号组织的字典） | 提取论文中所有图片信息，按主图编号组织为字典。例如：'1'对应Figure 1，'2'对应Figure 2（包含子图2a、2b等）"
+        },
+        "references": {
+          "type": "object",
+          "properties": {
+            "reference_list": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "参考文献编号（如'1'、'2'等）"
+                  },
+                  "citation": {
+                    "type": "string",
+                    "description": "完整引用字符串"
+                  },
+                  "doi": {
+                    "type": "string",
+                    "description": "DOI链接 | 参考文献的DOI链接。如果没有DOI，返回空字符串''"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "citation",
+                  "doi"
+                ]
+              },
+              "description": "参考文献列表 | 提取论文末尾的参考文献列表，尽可能完整。每篇参考文献必须包含DOI信息，如果没有DOI则返回空字符串"
+            },
+            "total_count": {
+              "type": "integer",
+              "description": "参考文献总数 | 必须提供，值为reference_list的长度"
+            }
+          },
+          "required": [
+            "reference_list",
+            "total_count"
+          ],
+          "additionalProperties": false,
+          "description": "参考文献信息"
+        },
+        "formulas": {
+          "type": "object",
+          "properties": {
+            "formula_list": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "formula_number": {
+                    "type": "string",
+                    "description": "公式编号（如'1'、'2'等）"
+                  },
+                  "latex_content": {
+                    "type": "string",
+                    "description": "LaTeX格式的公式内容"
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "公式描述或解释"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "formula_number",
+                  "latex_content"
+                ]
+              },
+              "description": "重要公式列表 | 提取论文中的重要数学公式，特别是核心公式和关键推导"
+            },
+            "total_count": {
+              "type": "integer",
+              "description": "重要公式总数 | 必须提供，值为formula_list的长度"
+            }
+          },
+          "required": [
+            "formula_list",
+            "total_count"
+          ],
+          "additionalProperties": false,
+          "description": "重要公式信息"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "images",
+        "references",
+        "formulas"
+      ]
+    }
+  },
+  "required": [
+    "paper_metadata",
+    "research_narrative",
+    "multimedia_content"
+  ],
+  "additionalProperties": false
+}

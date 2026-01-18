@@ -1,0 +1,9 @@
+python-dotenv
+aiohttp
+jinja2
+jsonschema
+json-repair
+tqdm
+neo4j
+pyyaml
+yake

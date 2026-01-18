@@ -1,0 +1,145 @@
+{
+  "paper_metadata": {
+    "title": "Test Paper on Neural Widgets",
+    "authors": [
+      {
+        "full_name": "Alice Zhang",
+        "given_name": "Alice",
+        "family_name": "Zhang",
+        "sequence": "first",
+        "affiliations": [],
+        "orcid": ""
+      }
+    ],
+    "publication_year": "2024",
+    "journal_or_conference": {
+      "title": "Journal of Widgetry"
+    },
+    "doi": "10.1234/widget.2024.001",
+    "url": "https://doi.org/10.1234/widget.2024.001",
+    "subtitle": "",
+    "short_title": "",
+    "publication_date": {},
+    "identifiers": {},
+    "publisher": {},
+    "categories": {},
+    "citation_metrics": {},
+    "open_access": {},
+    "funding": [],
+    "metadata_source": {},
+    "keywords": [],
+    "abstract": "This paper studies neural widgets."
+  },
+  "research_narrative": {
+    "background": {
+      "state_of_the_art_summary": {
+        "value": "Neural widgets have been explored with limited scalability.",
+        "source_excerpt": "Neural widgets ...",
+        "location_hint": "Introduction"
+      },
+      "foundational_works": []
+    },
+    "problem_formulation": {
+      "research_gap": {
+        "value": "Existing methods fail to generalize across domains.",
+        "source_excerpt": "",
+        "location_hint": "Introduction"
+      },
+      "research_questions": [],
+      "hypothesis": {
+        "statement": {
+          "value": null,
+          "source_excerpt": ""
+        },
+        "key_assumptions": []
+      },
+      "research_objectives": {
+        "value": "This study aims to improve widget generalization and robustness.",
+        "source_excerpt": {
+          "segment_map": [
+            {
+              "value_segment": "This study aims to improve widget generalization and robustness.",
+              "excerpt": "We aim to improve ..."
+            }
+          ]
+        }
+      }
+    },
+    "methodology": {
+      "approach_category": {
+        "value": "Data Analysis",
+        "source_excerpt": ""
+      },
+      "method_description": {
+        "value": "We train a neural widget model and evaluate cross-domain transfer.",
+        "source_excerpt": "",
+        "location_hint": "Methods"
+      },
+      "data_and_materials": {
+        "value": null,
+        "source_excerpt": ""
+      },
+      "evaluation_metrics": [],
+      "method_assumptions_and_limitations": {
+        "assumptions": {
+          "value": null,
+          "source_excerpt": {
+            "segment_map": []
+          }
+        },
+        "limitations": {
+          "value": null,
+          "source_excerpt": {
+            "segment_map": []
+          }
+        }
+      }
+    },
+    "results_and_findings": {
+      "key_findings": {
+        "value": "Our model improves accuracy by 5% across domains.",
+        "source_excerpt": {
+          "segment_map": [
+            {
+              "value_segment": "Our model improves accuracy by 5% across domains.",
+              "excerpt": "Results show ..."
+            }
+          ]
+        },
+        "supporting_evidence": [
+          {
+            "value": "p < 0.05",
+            "source_excerpt": "p < 0.05"
+          }
+        ]
+      },
+      "summary_of_results": {
+        "value": "Overall performance improved across datasets.",
+        "source_excerpt": ""
+      }
+    },
+    "discussion_and_conclusion": {
+      "final_conclusion": {
+        "value": "Neural widgets can be generalized with our approach.",
+        "source_excerpt": ""
+      }
+    }
+  },
+  "multimedia_content": {
+    "images": {},
+    "references": {
+      "reference_list": [
+        {
+          "id": "1",
+          "citation": "Zhang A. et al. (2020) Example Widgets Study.",
+          "doi": ""
+        }
+      ],
+      "total_count": 1
+    },
+    "formulas": {
+      "formula_list": [],
+      "total_count": 0
+    }
+  }
+}
