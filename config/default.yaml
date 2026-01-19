@@ -1,4 +1,4 @@
-llm:
+﻿llm:
   providers:
     openrouter:
       api_key_env: OPENROUTER_API_KEY
@@ -12,6 +12,25 @@ llm:
       headers: {}
   default_provider: deepseek
   agents:
+    research_narrative:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 6000
+      temperature: 0.3
+      structured_output:
+        enable: false
+        strict: false
+        schema_name: research_narrative
+    research_narrative_fallback:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 6000
+      temperature: 0.3
+    full_extractor:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 8000
+      temperature: 0.2
     metadata:
       provider: deepseek
       model: deepseek-chat
@@ -77,11 +96,18 @@ workflow:
   retry_delay: 2
   batch_parallel_limit: 3
   api_concurrent_limit: 10
+  extraction_mode: narrative_only
+  enable_targeted_fallback: true
+  iterative_refine:
+    enable: true
+    max_rounds: 3
+    stop_on_no_change: true
 
 context:
   max_context_length: 500000
   refinement_context_length: 500000
   refinement_result_length: 20000
+  evidence_max_chars: 20000
 
 logging:
   output_dir: logs
@@ -89,7 +115,7 @@ logging:
   console_format: "%(levelname)s: %(message)s"
   file_format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
   enable_progress_bar: true
-  min_log_level_console: WARNING
+  min_log_level_console: INFO
   min_log_level_file: DEBUG
 
 file_processing:
@@ -143,6 +169,7 @@ crossref:
 neo4j:
   enable: true
   mapping_path: config/neo4j_mapping.json
+  clear_before_import: true
 
 keywords:
   enable: true
@@ -150,7 +177,26 @@ keywords:
   language: en
   use_llm: true
 
+metadata:
+  use_crossref_first: true
+  llm_window_ratio: 0.15
+  llm_max_chars: 60000
+  retry_if_missing: true
+  required_fields:
+    - title
+    - authors
+    - publication_year
+    - journal_or_conference
+    - abstract
+    - keywords
+
+multimedia:
+  retry_if_empty: true
+  require_images_if_figure_mentions: true
+  require_formulas_if_equation_mentions: true
+
 citation_purpose:
   enable: true
   max_refs: 50
   context_window: 1
+

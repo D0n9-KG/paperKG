@@ -34,16 +34,17 @@
     "background": {
       "state_of_the_art_summary": {
         "value": "Neural widgets have been explored with limited scalability.",
-        "source_excerpt": "Neural widgets ...",
-        "location_hint": "Introduction"
+        "source_excerpt": {
+          "text": "Neural widgets ...",
+          "segment_map": []
+        }
       },
       "foundational_works": []
     },
     "problem_formulation": {
       "research_gap": {
         "value": "Existing methods fail to generalize across domains.",
-        "source_excerpt": "",
-        "location_hint": "Introduction"
+        "source_excerpt": ""
       },
       "research_questions": [],
       "hypothesis": {
@@ -72,8 +73,7 @@
       },
       "method_description": {
         "value": "We train a neural widget model and evaluate cross-domain transfer.",
-        "source_excerpt": "",
-        "location_hint": "Methods"
+        "source_excerpt": ""
       },
       "data_and_materials": {
         "value": null,

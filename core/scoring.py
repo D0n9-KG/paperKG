@@ -14,13 +14,31 @@ CRITICAL_FIELDS = [
     'research_narrative.results_and_findings.key_findings.value',
 ]
 
-SEGMENT_FIELDS = [
-    'research_narrative.problem_formulation.research_objectives.source_excerpt.segment_map',
-    'research_narrative.methodology.method_assumptions_and_limitations.assumptions.source_excerpt.segment_map',
-    'research_narrative.methodology.method_assumptions_and_limitations.limitations.source_excerpt.segment_map',
-    'research_narrative.results_and_findings.key_findings.source_excerpt.segment_map',
-    'research_narrative.discussion_and_conclusion.limitations_of_this_work.source_excerpt.segment_map',
-    'research_narrative.discussion_and_conclusion.future_work_suggestions.source_excerpt.segment_map',
+SEGMENT_REQUIREMENTS = [
+    (
+        'research_narrative.problem_formulation.research_objectives.value',
+        'research_narrative.problem_formulation.research_objectives.source_excerpt.segment_map',
+    ),
+    (
+        'research_narrative.methodology.method_assumptions_and_limitations.assumptions.value',
+        'research_narrative.methodology.method_assumptions_and_limitations.assumptions.source_excerpt.segment_map',
+    ),
+    (
+        'research_narrative.methodology.method_assumptions_and_limitations.limitations.value',
+        'research_narrative.methodology.method_assumptions_and_limitations.limitations.source_excerpt.segment_map',
+    ),
+    (
+        'research_narrative.results_and_findings.key_findings.value',
+        'research_narrative.results_and_findings.key_findings.source_excerpt.segment_map',
+    ),
+    (
+        'research_narrative.discussion_and_conclusion.limitations_of_this_work.value',
+        'research_narrative.discussion_and_conclusion.limitations_of_this_work.source_excerpt.segment_map',
+    ),
+    (
+        'research_narrative.discussion_and_conclusion.future_work_suggestions.value',
+        'research_narrative.discussion_and_conclusion.future_work_suggestions.source_excerpt.segment_map',
+    ),
 ]
 
 
@@ -57,14 +75,12 @@ def rule_score(data: Dict[str, Any]) -> Tuple[int, List[str]]:
 
     # Evidence coverage for segment_map
     evidence_penalties = 0
-    for path in SEGMENT_FIELDS:
-        segs = _get_path(data, path)
-        if segs is None:
+    for value_path, seg_path in SEGMENT_REQUIREMENTS:
+        value = _get_path(data, value_path)
+        if value in (None, '', {}, []):
             continue
-        if isinstance(segs, list):
-            if len(segs) == 0:
-                evidence_penalties += 1
-        else:
+        segs = _get_path(data, seg_path)
+        if not isinstance(segs, list) or len(segs) == 0:
             evidence_penalties += 1
 
     if evidence_penalties:

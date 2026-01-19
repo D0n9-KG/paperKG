@@ -242,6 +242,25 @@
                 "type": "string"
               },
               "description": "ISBN"
+            },
+            "issn_list": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "issn_type": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
             }
           },
           "additionalProperties": false,
@@ -348,6 +367,20 @@
                 "null"
               ],
               "description": "评分"
+            },
+            "reference_count": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Crossref reference-count"
+            },
+            "is_referenced_by_count": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Crossref is-referenced-by-count"
             }
           },
           "additionalProperties": false,
@@ -379,76 +412,6 @@
                 "null"
               ],
               "description": "URL"
-            },
-            "license": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "type": "object",
-                "properties": {
-                  "start": {
-                    "type": [
-                      "object",
-                      "null"
-                    ],
-                    "properties": {
-                      "date-parts": {
-                        "type": [
-                          "string",
-                          "number",
-                          "integer",
-                          "boolean",
-                          "object",
-                          "array",
-                          "null"
-                        ],
-                        "description": "日期部分（通常为数组的数组，如[[2024, 1, 1]]）"
-                      },
-                      "date-time": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "description": "日期时间字符串"
-                      },
-                      "timestamp": {
-                        "type": [
-                          "integer",
-                          "null"
-                        ],
-                        "description": "时间戳"
-                      }
-                    },
-                    "additionalProperties": false,
-                    "description": "许可证开始时间"
-                  },
-                  "content-version": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "description": "内容版本"
-                  },
-                  "delay-in-days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
-                    "description": "延迟天数"
-                  },
-                  "URL": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "description": "许可证URL"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "description": "许可证"
             }
           },
           "additionalProperties": false,
@@ -545,6 +508,180 @@
             "null"
           ],
           "description": "摘要 | 提取完整的摘要原文，保留换行和段落结构。若无摘要，返回 null"
+        },
+        "titles": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "title": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "subtitle": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "short_title": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "original_title": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "container_title": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "short_container_title": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "description": "Crossref ????????????"
+        },
+        "dates": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "published": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "published_online": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "published_print": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "issued": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "accepted": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "created": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "deposited": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            },
+            "indexed": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": false,
+          "description": "Crossref ??????"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Crossref language"
+        },
+        "issue": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Crossref issue"
+        },
+        "volume": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Crossref volume"
+        },
+        "article_number": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Crossref article-number"
+        },
+        "journal_issue": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "subject": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
@@ -567,18 +704,45 @@
                   "description": "领域现状总结内容 | 用2-4句话概括当前研究领域的整体状况，包括主流方法、已有成果和存在的挑战"
                 },
                 "source_excerpt": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "支撑该总结的原文片段"
-                },
-                "location_hint": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "原文位置提示（如'引言第2段'、'背景部分'等）"
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "?????????????segment_map????? | ?????????????????????????? null"
+                    },
+                    "segment_map": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "value_segment": {
+                            "type": "string",
+                            "description": "value ???????"
+                          },
+                          "excerpt": {
+                            "type": "string",
+                            "description": "???????"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "value_segment",
+                          "excerpt"
+                        ]
+                      },
+                      "description": "value????????????? | ? value ???????????????????????"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "segment_map"
+                  ]
                 }
               },
               "required": [
@@ -596,8 +760,11 @@
                     "type": "object",
                     "properties": {
                       "value": {
-                        "type": "string",
-                        "description": "文献标识值（优先输出数字标号，支持单个数字如 '5'、范围如 '4~9'、多个数字如 '5,7,9'；如果找不到数字标号，则输出完整的引用信息如 'Smith et al., 2020'） | 优先提取数字标号，支持多种格式：1) 单个数字如 '[5]' → '5'；2) 范围如 '[4-9]' 或 '[4~9]' → '4~9'；3) 多个数字如 '[5,7,9]' → '5,7,9'；4) 作者+数字如 'Smith et al. [12]' → '12'。如果找不到数字标号，则输出完整的引用信息如 'Smith et al., 2020'。尽量提取所有可能的数字标号，不要遗漏"
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Reference ids only (e.g., \"3\", \"3,5,6\", \"3-6\"). If no numeric id, set empty string and put original sentence into citation_text."
                       },
                       "source_excerpt": {
                         "type": [
@@ -605,6 +772,13 @@
                           "null"
                         ],
                         "description": "原文中引用该文献的片段"
+                      },
+                      "citation_text": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Original citation sentence from the paper (when no numeric id)."
                       }
                     },
                     "required": [
@@ -691,13 +865,6 @@
                     "null"
                   ],
                   "description": "原文中描述研究空白的片段"
-                },
-                "location_hint": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "原文位置提示"
                 }
               },
               "required": [
@@ -802,10 +969,7 @@
                   "description": "?????????????"
                 },
                 "source_excerpt": {
-                  "type": [
-                    "object",
-                    "null"
-                  ],
+                  "type": "object",
                   "properties": {
                     "text": {
                       "type": [
@@ -829,13 +993,6 @@
                           "excerpt": {
                             "type": "string",
                             "description": "???????"
-                          },
-                          "location_hint": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????????????????"
                           }
                         },
                         "additionalProperties": false,
@@ -848,7 +1005,9 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "?????????value???????"
+                  "required": [
+                    "segment_map"
+                  ]
                 }
               },
               "required": [
@@ -902,13 +1061,6 @@
                     "null"
                   ],
                   "description": "原文中描述方法的片段"
-                },
-                "location_hint": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "原文位置提示（如'方法部分第3段'）"
                 }
               },
               "required": [
@@ -988,10 +1140,7 @@
                       "description": "????????"
                     },
                     "source_excerpt": {
-                      "type": [
-                        "object",
-                        "null"
-                      ],
+                      "type": "object",
                       "properties": {
                         "text": {
                           "type": [
@@ -1015,13 +1164,6 @@
                               "excerpt": {
                                 "type": "string",
                                 "description": "???????"
-                              },
-                              "location_hint": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????????????????????"
                               }
                             },
                             "additionalProperties": false,
@@ -1034,7 +1176,9 @@
                         }
                       },
                       "additionalProperties": false,
-                      "description": "?????????value???????"
+                      "required": [
+                        "segment_map"
+                      ]
                     }
                   },
                   "additionalProperties": false,
@@ -1054,10 +1198,7 @@
                       "description": "?????????"
                     },
                     "source_excerpt": {
-                      "type": [
-                        "object",
-                        "null"
-                      ],
+                      "type": "object",
                       "properties": {
                         "text": {
                           "type": [
@@ -1081,13 +1222,6 @@
                               "excerpt": {
                                 "type": "string",
                                 "description": "???????"
-                              },
-                              "location_hint": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????????????????????"
                               }
                             },
                             "additionalProperties": false,
@@ -1100,7 +1234,9 @@
                         }
                       },
                       "additionalProperties": false,
-                      "description": "?????????value???????"
+                      "required": [
+                        "segment_map"
+                      ]
                     }
                   },
                   "additionalProperties": false,
@@ -1129,10 +1265,7 @@
                   "description": "?????????????"
                 },
                 "source_excerpt": {
-                  "type": [
-                    "object",
-                    "null"
-                  ],
+                  "type": "object",
                   "properties": {
                     "text": {
                       "type": [
@@ -1156,13 +1289,6 @@
                           "excerpt": {
                             "type": "string",
                             "description": "???????"
-                          },
-                          "location_hint": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????????????????"
                           }
                         },
                         "additionalProperties": false,
@@ -1175,7 +1301,9 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "?????????value???????"
+                  "required": [
+                    "segment_map"
+                  ]
                 },
                 "supporting_evidence": {
                   "type": [
@@ -1307,10 +1435,7 @@
                   "description": "???????"
                 },
                 "source_excerpt": {
-                  "type": [
-                    "object",
-                    "null"
-                  ],
+                  "type": "object",
                   "properties": {
                     "text": {
                       "type": [
@@ -1334,13 +1459,6 @@
                           "excerpt": {
                             "type": "string",
                             "description": "???????"
-                          },
-                          "location_hint": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????????????????"
                           }
                         },
                         "additionalProperties": false,
@@ -1353,7 +1471,9 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "?????????value???????"
+                  "required": [
+                    "segment_map"
+                  ]
                 }
               },
               "additionalProperties": false,
@@ -1373,10 +1493,7 @@
                   "description": "??????????"
                 },
                 "source_excerpt": {
-                  "type": [
-                    "object",
-                    "null"
-                  ],
+                  "type": "object",
                   "properties": {
                     "text": {
                       "type": [
@@ -1400,13 +1517,6 @@
                           "excerpt": {
                             "type": "string",
                             "description": "???????"
-                          },
-                          "location_hint": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????????????????"
                           }
                         },
                         "additionalProperties": false,
@@ -1419,7 +1529,9 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "?????????value???????"
+                  "required": [
+                    "segment_map"
+                  ]
                 }
               },
               "additionalProperties": false,
@@ -1489,6 +1601,13 @@
                   "doi": {
                     "type": "string",
                     "description": "DOI链接 | 参考文献的DOI链接。如果没有DOI，返回空字符串''"
+                  },
+                  "purpose": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Citation purpose summary (one sentence)."
                   }
                 },
                 "additionalProperties": false,

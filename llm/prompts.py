@@ -46,8 +46,9 @@ BACKGROUND_PROMPT_BASE = """你是一位资深的科研学者，擅长分析学�
 【重要提示】
 1. **原文追溯要求**：为每个提取的信息提供原文支撑
    - 必须从原文中提取信息，严禁臆造
-   - 为每个字段提供`source_excerpt`（原文片段）和`location_hint`（位置提示）
+   - 为每个字段提供`source_excerpt`（原文片段）
    - 如果原文中确实没有相关信息，`source_excerpt`可以为空
+   - 对需要合并输出的字段，`source_excerpt`必须是对象，包含`text`与`segment_map`，严禁输出为字符串
 
 2. **公式处理**：
    - 在描述贡献、局限性等内容时，如果涉及数学公式，请直接输出完整的公式表达式（使用LaTeX或原文格式）
@@ -66,9 +67,12 @@ BACKGROUND_PROMPT_BASE = """你是一位资深的科研学者，擅长分析学�
 2. **前置工作（foundational_works）**：
    - 仔细阅读论文的引言、背景和相关工作部分，提取所有被引用的关键前置研究
    - 每篇工作需包含：
-     * citation：文献标识（优先提取数字标号，如 "[5]" 提取 "5"，"[4-9]" 提取 "4~9"，"[5,7,9]" 提取 "5,7,9"。如果找不到数字标号，则输出完整的引用信息如 "Smith et al., 2020"）
+     * citation：仅输出引用编号（如 "3"、"3,5,6"、"3-6" 或 "3~6"），不要输出完整引用串
+     * citation_text：当原文中没有明确编号时，填写原句（完整引用句）
      * contribution：该工作的核心贡献（1-2句话）
      * limitation_or_gap_identified：作者明确指出的该工作的局限性或未解决的问题
+   - 如果没有编号：citation.value 置为 ""，并在 citation_text 中写原句
+   - 如果有编号：citation_text 置为 null
    - 所有信息必须来自原文，不要臆造
    - 尽量多地挖掘作者在文中提到的已有工作
    - 如果论文未引用前置工作，返回空数组 []
@@ -129,8 +133,9 @@ METHODOLOGY_PROMPT_BASE = """你是一位资深的科研方法论专家，擅长
 【重要提示】
 1. **原文追溯要求**：为每个提取的信息提供原文支撑
    - 必须从原文中提取信息，严禁臆造
-   - 为每个字段提供`source_excerpt`（原文片段）和`location_hint`（位置提示）
+   - 为每个字段提供`source_excerpt`（原文片段）
    - 如果原文中确实没有相关信息，`source_excerpt`可以为空
+   - 对需要合并输出的字段，`source_excerpt`必须是对象，包含`text`与`segment_map`，严禁输出为字符串
 
 2. **公式处理**：
    - 在描述方法、假设、局限性等内容时，如果涉及数学公式，请直接输出完整的公式表达式（使用LaTeX或原文格式）
@@ -217,8 +222,9 @@ RESULTS_PROMPT_BASE = """你是一位严谨的学术成果分析专家，擅长�
 【重要提示】
 1. **原文追溯要求**：为每个提取的信息提供原文支撑
    - 必须从原文中提取信息，严禁臆造
-   - 为每个字段提供`source_excerpt`（原文片段）和`location_hint`（位置提示）
+   - 为每个字段提供`source_excerpt`（原文片段）
    - 如果原文中确实没有相关信息，`source_excerpt`可以为空
+   - 对需要合并输出的字段，`source_excerpt`必须是对象，包含`text`与`segment_map`，严禁输出为字符串
 
 2. **公式处理**：
    - 在描述关键发现、结果解读、贡献等内容时，如果涉及数学公式，请直接输出完整的公式表达式（使用LaTeX或原文格式）
@@ -566,6 +572,11 @@ CONTENT_REWRITE_PROMPT = """你是一位严格的学术抽取修订专家。请�
 2) 合并字段（如research_objectives、key_findings、limitations、future_work等）必须多句且逐句有segment_map证据
 3) 不允许添加原文没有的信息；如无证据必须删除该句
 4) 允许更详细但必须忠实原文
+5) 仅允许schema中的字段，不要新增任何字段
+6) 不要输出任何 location_hint 字段
+7) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现
+8) 若 citation.value 为空字符串，则 citation_text 必须为原句；若 citation.value 有编号，则 citation_text 必须为 null
+9) 对合并字段的 source_excerpt 必须是对象，包含 text 与 segment_map，严禁输出为字符串
 
 【原文】
 {paper_text}
@@ -578,38 +589,132 @@ CONTENT_REWRITE_PROMPT = """你是一位严格的学术抽取修订专家。请�
 - 保持JSON结构与schema一致
 """
 
-KEYWORDS_PROMPT = """You are a careful academic metadata assistant. Extract keywords from the paper text.
+KEYWORDS_PROMPT = """你是一名严谨的学术元数据助手。请从论文文本中抽取关键词。
 
-Paper text:
+论文文本：
 {text}
 
-Requirements:
-1) Prefer explicit 'Keywords:' / 'Index Terms:' / '????' sections if present.
-2) If no explicit section, extract key technical terms from title/abstract/introduction.
-3) Every keyword MUST appear verbatim in the text.
-4) Output at most {max_keywords} keywords.
+要求：
+1) 优先使用明确的“Keywords / Index Terms / 关键词”等显式栏目。
+2) 如果没有显式栏目，从标题/摘要/引言中抽取关键技术术语。
+3) 每个关键词必须在原文中原样出现。
+4) 最多输出 {max_keywords} 个关键词。
 
-Output (JSON only):
+输出（仅JSON）：
 {
   "keywords": ["keyword1", "keyword2"]
 }
 """
 
-CITATION_PURPOSE_PROMPT = """You are an academic assistant. Given a citation and its local context, summarize the citation purpose in ONE sentence.
+CITATION_PURPOSE_PROMPT = """你是学术助手。给定一条引用及其局部上下文，请用“一句话”总结该引用的目的。
 
-Citation:
+引用：
 {citation}
 
-Context:
+上下文：
 {context}
 
-Requirements:
-- The sentence must be self-contained and clear when read alone.
-- Base the summary only on the provided context.
-- If the context is empty or does not indicate purpose, return an empty string.
+要求：
+- 句子必须独立可读，单独拿出来也能理解。
+- 仅基于给定上下文，不要臆造。
+- 若上下文无法判断目的，返回空字符串。
 
-Output (JSON only):
+输出（仅JSON）：
 {
   "purpose": ""
 }
 """
+
+
+# 统一的全量抽取提示（单轮输出）
+FULL_EXTRACT_PROMPT_BASE = """你是学术抽取助手。请一次性输出所有字段的JSON结果。
+
+论文文本：
+{text}
+
+要求：
+1) 输出必须严格符合“输出格式”中的schema。
+2) 每个value必须是完整、可独立阅读的句子（包含主语/动作/对象或条件）。
+3) 对合并字段需多句表达，并在 source_excerpt.segment_map 中逐句给证据。
+4) 严禁臆造；若原文无信息，按schema允许的空值输出。
+5) 对合并字段的 source_excerpt 必须是对象，包含 text 与 segment_map，严禁输出为字符串。
+6) 仅输出JSON，不要附加说明。
+
+{OUTPUT_FORMAT_SECTION}"""
+
+
+# 研究叙事抽取提示（仅 research_narrative）
+RESEARCH_NARRATIVE_PROMPT_BASE = """你是资深学术分析专家。只抽取 research_narrative 部分。
+
+论文文本：
+{text}
+
+要求：
+1) 输出必须符合“输出格式”中的schema，不得新增任何字段。
+2) 每个value必须是完整、可独立阅读的句子。
+3) 对合并字段需多句表达，并在 source_excerpt.segment_map 中逐句给证据。
+4) 严禁臆造；若原文无信息，按schema允许的空值输出。
+5) 对合并字段的 source_excerpt 必须是对象，包含 text 与 segment_map，严禁输出为字符串。
+6) 不要输出任何 location_hint 字段。
+7) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现。
+8) 若原文无编号，则 citation.value 设为 ""，并在 citation_text 中写原句；若有编号，citation_text 必须为 null。
+9) 仅输出JSON。
+
+{OUTPUT_FORMAT_SECTION}"""
+
+
+# Research narrative evidence map prompt (stage 1)
+RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据定位助手。请从给定的章节文本中提取每个部分最相关的原文句子或片段（作为证据）。
+
+【背景相关文本】
+{background_text}
+
+【问题定义相关文本】
+{problem_text}
+
+【方法相关文本】
+{method_text}
+
+【结果相关文本】
+{results_text}
+
+【讨论与结论相关文本】
+{discussion_text}
+
+【要求】
+1) 每个部分输出 3-8 条最相关原文句子/片段（按重要性排序）。
+2) 必须是原文中的句子/片段，不要改写。
+3) 如果确实没有内容，输出空数组。
+
+【输出（仅JSON）】
+{
+  "background": [],
+  "problem_formulation": [],
+  "methodology": [],
+  "results_and_findings": [],
+  "discussion_and_conclusion": []
+}
+"""
+
+
+# Research narrative synthesis prompt (stage 2)
+RESEARCH_NARRATIVE_SYNTH_PROMPT = """你是资深学术分析专家。只抽取 research_narrative 部分。
+
+【论文全文】
+{text}
+
+【已定位的证据片段（按部分）】
+{evidence_map}
+
+【要求】
+1) 输出必须符合“输出格式”中的schema，不得新增任何字段。
+2) 每个value必须是完整、可独立阅读的句子。
+3) 对合并字段需多句表达，并在 source_excerpt.segment_map 中逐句给证据。
+4) source_excerpt 必须是对象，包含 text 与 segment_map。
+5) 严禁臆造；若原文无信息，按schema允许的空值输出。
+6) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现。
+7) 若原文无编号，则 citation.value 设为 ""，并在 citation_text 中写原句；若有编号，citation_text 必须为 null。
+8) 优先使用“证据片段”中的句子作为 segment_map 的 excerpt。
+9) 仅输出JSON。
+
+{OUTPUT_FORMAT_SECTION}"""

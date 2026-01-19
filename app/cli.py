@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
+import sys
 import time
 from pathlib import Path
 from typing import List, Optional
@@ -14,12 +16,52 @@ from core.config import Config
 from pipeline.orchestrator import PaperKGExtractor
 
 
+def _ensure_utf8_console() -> None:
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
 def setup_logging(config: Config) -> None:
     cfg = config.get('logging', {})
     level_name = str(cfg.get('level', 'INFO')).upper()
-    level = getattr(logging, level_name, logging.INFO)
     fmt = cfg.get('console_format', '%(levelname)s: %(message)s')
-    logging.basicConfig(level=level, format=fmt)
+    console_level_name = str(cfg.get('min_log_level_console', level_name)).upper()
+    file_level_name = str(cfg.get('min_log_level_file', 'DEBUG')).upper()
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(logging.DEBUG)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, console_level_name, logging.INFO))
+    console_handler.setFormatter(logging.Formatter(fmt))
+    root_logger.addHandler(console_handler)
+
+    output_dir = cfg.get('output_dir')
+    if output_dir:
+        log_dir = Path(output_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        file_fmt = cfg.get('file_format', '%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+        file_handler = logging.FileHandler(log_dir / 'paperkg.log', encoding='utf-8')
+        file_handler.setLevel(getattr(logging, file_level_name, logging.DEBUG))
+        file_handler.setFormatter(logging.Formatter(file_fmt))
+        root_logger.addHandler(file_handler)
+
     logging.getLogger('core.crossref').setLevel(logging.WARNING)
     logging.getLogger('aiohttp').setLevel(logging.WARNING)
     logging.getLogger('neo4j').setLevel(logging.WARNING)
@@ -98,6 +140,7 @@ async def _process_directory(
 
 
 def main() -> None:
+    _ensure_utf8_console()
     parser = argparse.ArgumentParser(description='PaperKG - Paper Logic Chain Extractor')
     parser.add_argument('source', help='Source file or directory')
     parser.add_argument('--output-dir', '-o', help='Output directory')

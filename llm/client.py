@@ -16,7 +16,17 @@ class LlmClient:
         self.headers = headers or {}
         self.timeout = timeout
 
-    async def call(self, model: str, prompt: str, max_tokens: int, temperature: float, retries: int = 3, retry_delay: int = 2) -> str:
+    async def call(
+        self,
+        model: str,
+        prompt: str,
+        max_tokens: int,
+        temperature: float,
+        retries: int = 3,
+        retry_delay: int = 2,
+        response_format: Optional[Dict[str, Any]] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
+    ) -> str:
         last_exc: Optional[Exception] = None
         for attempt in range(retries):
             try:
@@ -31,6 +41,10 @@ class LlmClient:
                     "max_tokens": max_tokens,
                     "temperature": temperature,
                 }
+                if response_format:
+                    data["response_format"] = response_format
+                if extra_body:
+                    data.update(extra_body)
                 timeout = aiohttp.ClientTimeout(total=self.timeout)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.post(self.base_url, headers=headers, json=data) as resp:

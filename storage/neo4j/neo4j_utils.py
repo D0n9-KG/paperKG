@@ -53,6 +53,14 @@ class Neo4jConnection:
             self.driver.close()
             logger.info("Neo4j 连接已关闭")
 
+    def clear_all(self) -> None:
+        """清空数据库中的所有节点和关系"""
+        if not hasattr(self, 'driver'):
+            return
+        with self.driver.session() as session:
+            session.run("MATCH (n) DETACH DELETE n")
+        logger.info("Neo4j 数据已清空")
+
     def execute_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
         执行 Cypher 查询
@@ -155,7 +163,7 @@ class Neo4jConnection:
         MATCH (a), (b)
         WHERE elementId(a) = $from_id AND elementId(b) = $to_id
         MERGE (a)-[r:{relationship_type}]->(b)
-        SET r = $properties
+        SET r += $properties
         """
 
         params = {
@@ -220,11 +228,9 @@ class Neo4jConnection:
             params = {prop_name: prop_value, 'set_properties': set_properties}
         else:
             # 多属性匹配 - 使用 WHERE 子句
-            match_conditions = [f"n.{k} = ${k}" for k in match_properties.keys()]
-
+            match_map = ", ".join([f"{k}: ${k}" for k in match_properties.keys()])
             query = f"""
-            MERGE (n:{label})
-            WHERE {' AND '.join(match_conditions)}
+            MERGE (n:{label} {{{match_map}}})
             ON CREATE SET n += $set_properties
             ON MATCH SET n += $set_properties
             RETURN n, elementId(n) as node_id
@@ -279,6 +285,39 @@ def get_neo4j_connection() -> Neo4jConnection:
     if _neo4j_connection is None:
         _neo4j_connection = Neo4jConnection()
     return _neo4j_connection
+
+
+def clear_neo4j_database() -> None:
+    """清空 Neo4j 数据库"""
+    conn = get_neo4j_connection()
+    conn.clear_all()
+
+
+def get_graph_stats() -> Dict[str, Any]:
+    """获取图数据库的节点与关系统计"""
+    conn = get_neo4j_connection()
+    labels = conn.execute_query("CALL db.labels() YIELD label RETURN label")
+    label_counts: Dict[str, int] = {}
+    for item in labels:
+        label = item.get("label")
+        if not label:
+            continue
+        res = conn.execute_query(f"MATCH (n:`{label}`) RETURN count(n) as c")
+        label_counts[label] = int(res[0]["c"]) if res else 0
+
+    rels = conn.execute_query("CALL db.relationshipTypes() YIELD relationshipType RETURN relationshipType")
+    rel_counts: Dict[str, int] = {}
+    for item in rels:
+        rel = item.get("relationshipType")
+        if not rel:
+            continue
+        res = conn.execute_query(f"MATCH ()-[r:`{rel}`]-() RETURN count(r) as c")
+        rel_counts[rel] = int(res[0]["c"]) if res else 0
+
+    return {
+        "labels": label_counts,
+        "relationships": rel_counts,
+    }
 
 
 def close_neo4j_connection():

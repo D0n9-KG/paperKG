@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+import logging
+
 from storage.neo4j.neo4j_utils import get_neo4j_connection
 from storage.neo4j.mapper import GraphMapper
 
@@ -25,7 +27,8 @@ class PaperToNeo4jConverter:
         try:
             self.mapper.map(paper_data, dry_run=False)
             return True
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Neo4j export failed: %s", exc)
             return False
 
 

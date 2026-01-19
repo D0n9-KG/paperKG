@@ -47,6 +47,10 @@ workflow:
   retry_attempts: 1
   retry_delay: 0
   api_timeout: 300
+  extraction_mode: multi
+  enable_targeted_fallback: false
+  iterative_refine:
+    enable: false
 
 context:
   max_context_length: 500000
@@ -73,6 +77,7 @@ repair:
 
 neo4j:
   enable: false
+  clear_before_import: false
 
 quality:
   enable: false

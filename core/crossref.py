@@ -501,11 +501,13 @@ class CrossrefDataExtractor:
         issn_list = crossref_data.get("ISSN", [])
         issn = issn_list[0] if issn_list else ""
         eissn = crossref_data.get("eISSN", "")
-        
+
         return {
             "issn": issn,
             "eissn": eissn,
-            "isbn": crossref_data.get("ISBN", [])
+            "isbn": crossref_data.get("ISBN", []),
+            "issn_list": issn_list,
+            "issn_type": crossref_data.get("issn-type", [])
         }
     
     @staticmethod
@@ -538,7 +540,6 @@ class CrossrefDataExtractor:
     def extract_categories(crossref_data: Dict) -> Dict:
         """提取分类信息"""
         return {
-            "type": crossref_data.get("type", ""),
             "subtype": crossref_data.get("subtype", ""),
             "subjects": crossref_data.get("subject", []),
             "categories": crossref_data.get("categories", [])
@@ -549,6 +550,8 @@ class CrossrefDataExtractor:
         """提取引用指标"""
         return {
             "crossref_citations": crossref_data.get("is-referenced-by-count", 0),
+            "is_referenced_by_count": crossref_data.get("is-referenced-by-count", 0),
+            "reference_count": crossref_data.get("reference-count", 0),
             "references_count": crossref_data.get("references-count", 0),
             "score": crossref_data.get("score", 0.0)
         }
@@ -559,8 +562,7 @@ class CrossrefDataExtractor:
         return {
             "is_open_access": crossref_data.get("is-open-access", False),
             "status": crossref_data.get("oa-status", ""),
-            "url": crossref_data.get("oa-url", ""),
-            "license": crossref_data.get("license", [])
+            "url": crossref_data.get("oa-url", "")
         }
     
     @staticmethod
@@ -571,7 +573,6 @@ class CrossrefDataExtractor:
         
         for funder in funders:
             info = {
-                "funder": funder.get("name", ""),
                 "funder_doi": funder.get("DOI", ""),
                 "award": funder.get("award", [])
             }
@@ -581,22 +582,37 @@ class CrossrefDataExtractor:
     
     @staticmethod
     def extract_complete_metadata(crossref_data: Dict) -> Dict:
-        """提取完整的Crossref元数据"""
         if not crossref_data:
             return {}
 
+        titles_obj = {
+            "title": crossref_data.get("title", []) or [],
+            "subtitle": crossref_data.get("subtitle", []) or [],
+            "short_title": crossref_data.get("short-title", []) or [],
+            "original_title": crossref_data.get("original-title", []) or [],
+            "container_title": crossref_data.get("container-title", []) or [],
+            "short_container_title": crossref_data.get("short-container-title", []) or [],
+        }
+
+        dates_obj = {
+            "published": crossref_data.get("published"),
+            "published_online": crossref_data.get("published-online"),
+            "published_print": crossref_data.get("published-print"),
+            "issued": crossref_data.get("issued"),
+            "accepted": crossref_data.get("accepted"),
+            "created": crossref_data.get("created"),
+            "deposited": crossref_data.get("deposited"),
+            "indexed": crossref_data.get("indexed"),
+        }
+
         return {
-            # 基本标识
             "doi": crossref_data.get("DOI", ""),
             "url": crossref_data.get("URL", ""),
             "title": CrossrefDataExtractor.extract_title(crossref_data),
             "subtitle": crossref_data.get("subtitle", [""])[0] if crossref_data.get("subtitle") else "",
             "short_title": crossref_data.get("short-title", [""])[0] if crossref_data.get("short-title") else "",
-
-            # 作者信息
+            "titles": titles_obj,
             "authors": CrossrefDataExtractor.extract_authors(crossref_data),
-
-            # 出版时间
             "publication_year": CrossrefDataExtractor.extract_year(crossref_data),
             "publication_date": {
                 "published": crossref_data.get("published", {}).get("date-parts", [[]])[0] if crossref_data.get("published") else [],
@@ -604,33 +620,22 @@ class CrossrefDataExtractor:
                 "published_print": crossref_data.get("published-print", {}).get("date-parts", [[]])[0] if crossref_data.get("published-print") else [],
                 "issued": crossref_data.get("issued", {}).get("date-parts", [[]])[0] if crossref_data.get("issued") else []
             },
-
-            # 期刊信息
+            "dates": dates_obj,
             "journal_or_conference": CrossrefDataExtractor.extract_journal_info(crossref_data),
-
-            # 标识符
+            "journal_issue": crossref_data.get("journal-issue"),
+            "issue": crossref_data.get("issue", ""),
+            "volume": crossref_data.get("volume", ""),
+            "article_number": crossref_data.get("article-number", ""),
+            "language": crossref_data.get("language", ""),
             "identifiers": CrossrefDataExtractor.extract_identifiers(crossref_data),
-
-            # 出版商
             "publisher": CrossrefDataExtractor.extract_publisher_info(crossref_data),
-
-            # 摘要和关键词
             "abstract": CrossrefDataExtractor.extract_abstract(crossref_data),
             "keywords": CrossrefDataExtractor.extract_keywords(crossref_data),
-
-            # 分类信息
             "categories": CrossrefDataExtractor.extract_categories(crossref_data),
-
-            # 引用指标
+            "subject": crossref_data.get("subject", []),
             "citation_metrics": CrossrefDataExtractor.extract_citation_metrics(crossref_data),
-
-            # 开放获取
             "open_access": CrossrefDataExtractor.extract_open_access_info(crossref_data),
-
-            # 基金信息
             "funding": CrossrefDataExtractor.extract_funding_info(crossref_data),
-
-            # 来源标记
             "metadata_source": {
                 "primary_source": "crossref",
                 "crossref_retrieved": datetime.now().isoformat(),
