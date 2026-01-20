@@ -97,18 +97,25 @@ class GraphMapper:
 
         # Map metadata into independent, mergeable nodes
         if isinstance(paper_meta, dict):
-            self._map_metadata_nodes(paper_meta, paper_id, key_value, dry_run)
+            meta_label = _to_label("paper_metadata")
+            meta_uid = _hash_id(f"{key_value}:paper_metadata")
+            meta_props = {"_path": "paper_metadata"}
+            meta_id = self._ensure_node(meta_label, meta_uid, meta_props, dry_run)
+            self._ensure_relationship(paper_id, meta_id, "HAS_PAPER_METADATA", dry_run)
+            self._map_metadata_nodes(paper_meta, meta_id, key_value, dry_run)
 
-        # Research narrative section
+        # Research narrative section (v2 logic chains)
         research = data.get("research_narrative")
         if isinstance(research, dict):
-            label = _to_label("research_narrative")
-            uid = _hash_id(f"{key_value}:research_narrative")
-            props = _collect_scalar_props(research)
-            props["_path"] = "research_narrative"
-            research_id = self._ensure_node(label, uid, props, dry_run)
-            self._ensure_relationship(paper_id, research_id, "HAS_RESEARCH_NARRATIVE", dry_run)
-            self._map_object(research, research_id, uid, "research_narrative", dry_run)
+            # ResearchNarrative node intentionally omitted to keep graph cleaner.
+            self._map_research_narrative_v2(
+                research=research,
+                research_id=None,
+                paper_id=paper_id,
+                paper_uid=key_value,
+                multimedia=data.get("multimedia_content", {}),
+                dry_run=dry_run,
+            )
 
         # Multimedia content section
         multimedia = data.get("multimedia_content")
@@ -121,7 +128,7 @@ class GraphMapper:
             self._ensure_relationship(paper_id, multimedia_id, "HAS_MULTIMEDIA_CONTENT", dry_run)
             self._map_multimedia_content(multimedia, multimedia_id, uid, paper_id, key_value, dry_run)
 
-        # Foundational works relationships
+        # Foundational works relationships (legacy; no-op for v2 structure)
         self._map_foundational_relationships(data, paper_id, dry_run)
 
         return {
@@ -222,7 +229,7 @@ class GraphMapper:
         self.conn.merge_node(label, {key: value}, props)
         return self.conn.get_node_id(label, key, value)
 
-    def _map_metadata_nodes(self, metadata: Dict[str, Any], paper_id: Optional[str], paper_uid: str, dry_run: bool):
+    def _map_metadata_nodes(self, metadata: Dict[str, Any], metadata_id: Optional[str], paper_uid: str, dry_run: bool):
         if not isinstance(metadata, dict):
             return
 
@@ -257,7 +264,7 @@ class GraphMapper:
             titles_uid = _hash_id(f"{paper_uid}:titles")
             titles_props = {"_path": "paper_metadata.titles"}
             titles_id = self._ensure_node("Titles", titles_uid, titles_props, dry_run)
-            self._ensure_relationship(paper_id, titles_id, "HAS_TITLES", dry_run)
+            self._ensure_relationship(metadata_id, titles_id, "HAS_TITLES", dry_run)
 
             seen_titles: Set[Tuple[str, str]] = set()
             for kind, value in titles_payload:
@@ -273,12 +280,12 @@ class GraphMapper:
         abstract = metadata.get("abstract")
         if isinstance(abstract, str) and abstract.strip():
             node_id = self._merge_value_node("Abstract", abstract) if not dry_run else None
-            self._ensure_relationship(paper_id, node_id, "HAS_ABSTRACT", dry_run)
+            self._ensure_relationship(metadata_id, node_id, "HAS_ABSTRACT", dry_run)
 
         year = metadata.get("publication_year")
         if isinstance(year, str) and year.strip():
             node_id = self._merge_simple_node("PublicationYear", "value", year.strip()) if not dry_run else None
-            self._ensure_relationship(paper_id, node_id, "PUBLISHED_IN_YEAR", dry_run)
+            self._ensure_relationship(metadata_id, node_id, "PUBLISHED_IN_YEAR", dry_run)
 
         journal = metadata.get("journal_or_conference")
         journal_id = None
@@ -330,7 +337,7 @@ class GraphMapper:
                         journal_id = self._merge_named_node("Journal", name_for_merge, journal_props)
 
                 rel_props = {"pages": journal_pages} if journal_pages else {}
-                self._ensure_relationship(paper_id, journal_id, "PUBLISHED_IN", dry_run, rel_props or None)
+                self._ensure_relationship(metadata_id, journal_id, "PUBLISHED_IN", dry_run, rel_props or None)
 
         publisher = metadata.get("publisher")
         if isinstance(publisher, dict):
@@ -342,7 +349,7 @@ class GraphMapper:
                 }
                 pub_props = {k: v for k, v in pub_props.items() if v not in (None, "", [])}
                 publisher_id = self._merge_named_node("Publisher", publisher_name, pub_props) if not dry_run else None
-                self._ensure_relationship(paper_id, publisher_id, "PUBLISHED_BY", dry_run)
+                self._ensure_relationship(metadata_id, publisher_id, "PUBLISHED_BY", dry_run)
 
         authors = metadata.get("authors")
         if isinstance(authors, list):
@@ -409,7 +416,7 @@ class GraphMapper:
                 rel_props = {}
                 if author.get("sequence"):
                     rel_props["sequence"] = author.get("sequence")
-                self._ensure_relationship(paper_id, author_id, "AUTHORED_BY", dry_run, rel_props)
+                self._ensure_relationship(metadata_id, author_id, "AUTHORED_BY", dry_run, rel_props)
 
                 for aff_name in affiliation_names:
                     aff_id = self._merge_named_node("Affiliation", aff_name) if not dry_run else None
@@ -433,7 +440,7 @@ class GraphMapper:
                 identifiers_uid = _hash_id(f"{paper_uid}:identifiers")
                 identifiers_props = {"_path": "paper_metadata.identifiers"}
                 identifiers_id = self._ensure_node("Identifiers", identifiers_uid, identifiers_props, dry_run)
-                self._ensure_relationship(paper_id, identifiers_id, "HAS_IDENTIFIERS", dry_run)
+            self._ensure_relationship(metadata_id, identifiers_id, "HAS_IDENTIFIERS", dry_run)
 
             for id_type in ("issn", "eissn"):
                 value = _pick_str(identifiers.get(id_type))
@@ -442,7 +449,7 @@ class GraphMapper:
                     if not dry_run and self.conn:
                         self.conn.merge_node("Identifier", {"id_type": id_type, "value": value}, {"id_type": id_type, "value": value})
                         id_node = self.conn.get_node_id("Identifier", "value", value)
-                    target_id = identifiers_id or paper_id
+                    target_id = identifiers_id or metadata_id
                     self._ensure_relationship(target_id, id_node, "HAS_IDENTIFIER", dry_run)
             isbn_list = identifiers.get("isbn")
             if isinstance(isbn_list, list):
@@ -454,7 +461,7 @@ class GraphMapper:
                     if not dry_run and self.conn:
                         self.conn.merge_node("Identifier", {"id_type": "isbn", "value": value}, {"id_type": "isbn", "value": value})
                         id_node = self.conn.get_node_id("Identifier", "value", value)
-                    target_id = identifiers_id or paper_id
+                    target_id = identifiers_id or metadata_id
                     self._ensure_relationship(target_id, id_node, "HAS_IDENTIFIER", dry_run)
             issn_list = identifiers.get("issn_list")
             if isinstance(issn_list, list):
@@ -466,7 +473,7 @@ class GraphMapper:
                     if not dry_run and self.conn:
                         self.conn.merge_node("Identifier", {"id_type": "issn", "value": value}, {"id_type": "issn", "value": value})
                         id_node = self.conn.get_node_id("Identifier", "value", value)
-                    target_id = identifiers_id or paper_id
+                    target_id = identifiers_id or metadata_id
                     self._ensure_relationship(target_id, id_node, "HAS_IDENTIFIER", dry_run)
             issn_type = identifiers.get("issn_type")
             if isinstance(issn_type, list):
@@ -479,7 +486,7 @@ class GraphMapper:
                     uid = _hash_id(f"issn_type:{entry.get('type')}:{value}")
                     props = _collect_scalar_props(entry)
                     issn_type_id = self._ensure_node("IssnType", uid, props, dry_run)
-                    target_id = identifiers_id or paper_id
+                    target_id = identifiers_id or metadata_id
                     self._ensure_relationship(target_id, issn_type_id, "HAS_ISSN_TYPE", dry_run)
 
         categories = metadata.get("categories")
@@ -487,23 +494,23 @@ class GraphMapper:
             type_value = categories.get("type")
             if isinstance(type_value, str) and type_value.strip():
                 type_id = self._merge_named_node("PublicationType", type_value) if not dry_run else None
-                self._ensure_relationship(paper_id, type_id, "HAS_TYPE", dry_run)
+                self._ensure_relationship(metadata_id, type_id, "HAS_TYPE", dry_run)
             subtype_value = categories.get("subtype")
             if isinstance(subtype_value, str) and subtype_value.strip():
                 subtype_id = self._merge_named_node("PublicationSubtype", subtype_value) if not dry_run else None
-                self._ensure_relationship(paper_id, subtype_id, "HAS_SUBTYPE", dry_run)
+                self._ensure_relationship(metadata_id, subtype_id, "HAS_SUBTYPE", dry_run)
             subjects = categories.get("subjects")
             if isinstance(subjects, list):
                 for subject in subjects:
                     if isinstance(subject, str) and subject.strip():
                         node_id = self._merge_named_node("Subject", subject) if not dry_run else None
-                        self._ensure_relationship(paper_id, node_id, "HAS_SUBJECT", dry_run)
+                        self._ensure_relationship(metadata_id, node_id, "HAS_SUBJECT", dry_run)
             cats = categories.get("categories")
             if isinstance(cats, list):
                 for cat in cats:
                     if isinstance(cat, str) and cat.strip():
                         node_id = self._merge_named_node("Category", cat) if not dry_run else None
-                        self._ensure_relationship(paper_id, node_id, "HAS_CATEGORY", dry_run)
+                        self._ensure_relationship(metadata_id, node_id, "HAS_CATEGORY", dry_run)
 
         # Top-level subjects
         subjects_top = metadata.get("subject")
@@ -511,7 +518,7 @@ class GraphMapper:
             for subject in subjects_top:
                 if isinstance(subject, str) and subject.strip():
                     node_id = self._merge_named_node("Subject", subject) if not dry_run else None
-                    self._ensure_relationship(paper_id, node_id, "HAS_SUBJECT", dry_run)
+                    self._ensure_relationship(metadata_id, node_id, "HAS_SUBJECT", dry_run)
 
         # Crossref date objects (hierarchical container)
         dates = metadata.get("dates")
@@ -519,7 +526,7 @@ class GraphMapper:
             dates_uid = _hash_id(f"{paper_uid}:dates")
             dates_props = {"_path": "paper_metadata.dates"}
             dates_id = self._ensure_node("Dates", dates_uid, dates_props, dry_run)
-            self._ensure_relationship(paper_id, dates_id, "HAS_DATES", dry_run)
+            self._ensure_relationship(metadata_id, dates_id, "HAS_DATES", dry_run)
             for kind, date_obj in dates.items():
                 if not isinstance(date_obj, dict):
                     continue
@@ -533,7 +540,7 @@ class GraphMapper:
         language = metadata.get("language")
         if isinstance(language, str) and language.strip():
             lang_id = self._merge_named_node("Language", language) if not dry_run else None
-            self._ensure_relationship(paper_id, lang_id, "HAS_LANGUAGE", dry_run)
+            self._ensure_relationship(metadata_id, lang_id, "HAS_LANGUAGE", dry_run)
 
         # Issue / Volume / Article number (journal children when possible)
         issue_value = _pick_str(journal.get("issue")) if isinstance(journal, dict) else None
@@ -563,7 +570,7 @@ class GraphMapper:
                 self._ensure_relationship(journal_id, child_id, rel_type, dry_run)
             else:
                 child_id = self._merge_simple_node(label, "value", value) if not dry_run else None
-                self._ensure_relationship(paper_id, child_id, rel_type, dry_run)
+                self._ensure_relationship(metadata_id, child_id, rel_type, dry_run)
 
         _link_journal_child("Issue", issue_value, "HAS_ISSUE")
         _link_journal_child("Volume", volume_value, "HAS_VOLUME")
@@ -577,10 +584,10 @@ class GraphMapper:
                 seed = metadata.get("doi") or metadata.get("url") or metadata.get("title") or "open_access"
                 uid = _hash_id(f"open_access:{seed}")
                 oa_id = self._ensure_node("OpenAccess", uid, props, dry_run)
-                self._ensure_relationship(paper_id, oa_id, "HAS_OPEN_ACCESS", dry_run)
+                self._ensure_relationship(metadata_id, oa_id, "HAS_OPEN_ACCESS", dry_run)
 
         # Keywords
-        self._map_keywords(metadata, paper_id, dry_run)
+        self._map_keywords(metadata, metadata_id, dry_run)
 
         funding = metadata.get("funding")
         if isinstance(funding, list):
@@ -607,13 +614,212 @@ class GraphMapper:
                     elif funder_name:
                         funder_id = self._merge_named_node("Funder", funder_name, funder_props)
 
-                self._ensure_relationship(paper_id, funder_id, "FUNDED_BY", dry_run)
+                self._ensure_relationship(metadata_id, funder_id, "FUNDED_BY", dry_run)
                 awards = fund.get("award")
                 if isinstance(awards, list):
                     for award in awards:
                         if isinstance(award, str) and award.strip():
                             award_id = self._merge_value_node("Award", award) if not dry_run else None
                             self._ensure_relationship(funder_id, award_id, "HAS_AWARD", dry_run)
+
+    def _iter_logic_items_v2(self, narrative: Dict[str, Any]):
+        for section, node_type in (
+            ("background", "background"),
+            ("research_gaps", "research_gap"),
+            ("research_questions", "research_question"),
+            ("hypotheses", "hypothesis"),
+        ):
+            items = narrative.get(section)
+            if isinstance(items, list):
+                for item in items:
+                    yield item, node_type
+
+        for block_name, main_type, support_type in (
+            ("methods", "method_main", "method_support"),
+            ("results", "result_main", "result_support"),
+            ("conclusions", "conclusion_main", "conclusion_support"),
+        ):
+            block = narrative.get(block_name)
+            if not isinstance(block, dict):
+                continue
+            main = block.get("main")
+            if isinstance(main, dict):
+                yield main, main_type
+            supports = block.get("supports")
+            if isinstance(supports, list):
+                for item in supports:
+                    yield item, support_type
+
+    def _map_research_narrative_v2(
+        self,
+        research: Dict[str, Any],
+        research_id: Optional[str],
+        paper_id: Optional[str],
+        paper_uid: str,
+        multimedia: Dict[str, Any],
+        dry_run: bool,
+    ) -> None:
+        # Build reference lookup
+        references = multimedia.get("references", {}) if isinstance(multimedia, dict) else {}
+        ref_list = references.get("reference_list", []) if isinstance(references, dict) else []
+        ref_by_id: Dict[str, Dict[str, Any]] = {}
+        ref_by_text: Dict[str, Dict[str, Any]] = {}
+        if isinstance(ref_list, list):
+            for ref in ref_list:
+                if not isinstance(ref, dict):
+                    continue
+                ref_id = ref.get("id")
+                if ref_id is not None:
+                    ref_by_id[str(ref_id).strip()] = ref
+                citation = ref.get("citation")
+                if isinstance(citation, str) and citation.strip():
+                    ref_by_text[_normalize_text(citation)] = ref
+
+        # Create logic nodes
+        node_id_map: Dict[str, Optional[str]] = {}
+        for item, node_type in self._iter_logic_items_v2(research):
+            if not isinstance(item, dict):
+                continue
+            node_id = item.get("node_id")
+            if not isinstance(node_id, str) or not node_id.strip():
+                continue
+            node_id = node_id.strip()
+            uid = _hash_id(f"{paper_uid}:logic:{node_id}")
+            props = _collect_scalar_props(item)
+            props["node_id"] = node_id
+            props["node_type"] = node_type
+            props["_path"] = f"research_narrative.logic_nodes.{node_id}"
+            logic_node_id = self._ensure_node("LogicNode", uid, props, dry_run)
+            node_id_map[node_id] = logic_node_id
+            # Keep Paper -> LogicNode for provenance and direct lookup
+            self._ensure_relationship(paper_id, logic_node_id, "HAS_LOGIC_NODE", dry_run)
+
+            # Map citations for this logic node
+            citations = item.get("citations")
+            if isinstance(citations, list):
+                for cite in citations:
+                    if not isinstance(cite, dict):
+                        continue
+                    citation_id = cite.get("citation_id")
+                    citation_text = cite.get("citation_text")
+                    if citation_id is not None and not isinstance(citation_id, str):
+                        citation_id = str(citation_id)
+                    if citation_text is not None and not isinstance(citation_text, str):
+                        citation_text = str(citation_text)
+
+                    ref_item = None
+                    if citation_id:
+                        ref_item = ref_by_id.get(str(citation_id))
+                    if ref_item is None and citation_text:
+                        ref_item = ref_by_text.get(_normalize_text(citation_text))
+
+                    if ref_item is None:
+                        seed = citation_text or citation_id or json.dumps(cite, ensure_ascii=False)
+                        ref_key_type, ref_key_value = ("citation_hash", _citation_hash(seed))
+                        ref_props = self._build_reference_properties({}, ref_key_type, ref_key_value)
+                    else:
+                        ref_key_type, ref_key_value = self._paper_key_from_reference(ref_item)
+                        ref_props = self._build_reference_properties(ref_item, ref_key_type, ref_key_value)
+
+                    ref_node = None
+                    if not dry_run:
+                        ref_node = self._merge_paper_node(ref_key_type, ref_key_value, ref_props)
+
+                    rel_props = {}
+                    if citation_id:
+                        rel_props["citation_id"] = citation_id
+                    if citation_text:
+                        rel_props["citation_text"] = citation_text
+                    purpose = cite.get("purpose")
+                    if isinstance(purpose, str) and purpose.strip():
+                        rel_props["purpose"] = purpose.strip()
+                    evidence_ids = item.get("evidence_segment_ids")
+                    if isinstance(evidence_ids, list) and evidence_ids:
+                        rel_props["evidence_segment_ids"] = evidence_ids
+                    self._ensure_relationship(logic_node_id, ref_node, "CITES", dry_run, rel_props)
+
+        # Map logic chains
+        chains = research.get("logic_chains")
+        if isinstance(chains, list):
+            for chain in chains:
+                if not isinstance(chain, dict):
+                    continue
+                chain_id = chain.get("chain_id")
+                if not isinstance(chain_id, str) or not chain_id.strip():
+                    continue
+                chain_id = chain_id.strip()
+                chain_uid = _hash_id(f"{paper_uid}:chain:{chain_id}")
+                chain_props = {
+                    "chain_id": chain_id,
+                    "_path": f"research_narrative.logic_chains.{chain_id}",
+                }
+                question_ids = chain.get("question_ids")
+                hypothesis_ids = chain.get("hypothesis_ids")
+                if isinstance(question_ids, list):
+                    chain_props["question_ids"] = question_ids
+                if isinstance(hypothesis_ids, list):
+                    chain_props["hypothesis_ids"] = hypothesis_ids
+
+                chain_node_id = self._ensure_node("LogicChain", chain_uid, chain_props, dry_run)
+                self._ensure_relationship(paper_id, chain_node_id, "HAS_LOGIC_CHAIN", dry_run)
+                # Skip duplicate research->chain relation to keep graph cleaner
+
+                steps = chain.get("steps")
+                if not isinstance(steps, list):
+                    continue
+                prev_node = None
+                for idx, step_id in enumerate(steps):
+                    if not isinstance(step_id, str):
+                        continue
+                    logic_node_id = node_id_map.get(step_id)
+                    if logic_node_id is None:
+                        continue
+                    if idx == 0:
+                        # Connect chain to the root only for cleaner visualization
+                        self._ensure_relationship(
+                            chain_node_id,
+                            logic_node_id,
+                            "HAS_LOGIC_ROOT",
+                            dry_run,
+                            {"step_index": idx},
+                        )
+                    if prev_node is not None:
+                        self._ensure_relationship(prev_node, logic_node_id, "NEXT", dry_run, {"chain_id": chain_id})
+                    prev_node = logic_node_id
+
+        # Map support relationships (supports -> main)
+        for block_name in ("methods", "results", "conclusions"):
+            block = research.get(block_name)
+            if not isinstance(block, dict):
+                continue
+            main = block.get("main")
+            if not isinstance(main, dict):
+                continue
+            main_id = main.get("node_id")
+            if not isinstance(main_id, str):
+                continue
+            main_node = node_id_map.get(main_id)
+            if main_node is None:
+                continue
+            supports = block.get("supports")
+            if not isinstance(supports, list):
+                continue
+            for item in supports:
+                if not isinstance(item, dict):
+                    continue
+                support_id = item.get("node_id")
+                if not isinstance(support_id, str):
+                    continue
+                support_node = node_id_map.get(support_id)
+                if support_node is None:
+                    continue
+                self._ensure_relationship(
+                    support_node,
+                    main_node,
+                    "SUPPORTS",
+                    dry_run,
+                    {"block": block_name},
+                )
 
     def _parse_citation_ids(self, value: Optional[str]) -> List[str]:
         if not value:
@@ -873,7 +1079,7 @@ class GraphMapper:
                 img_id = self._ensure_node("Image", img_uid, img_props, dry_run)
                 self._ensure_relationship(fig_id, img_id, "HAS_IMAGE", dry_run)
 
-    def _map_keywords(self, metadata: Dict[str, Any], paper_id: Optional[str], dry_run: bool):
+    def _map_keywords(self, metadata: Dict[str, Any], metadata_id: Optional[str], dry_run: bool):
         keywords = metadata.get("keywords")
         if not isinstance(keywords, list):
             return
@@ -890,7 +1096,7 @@ class GraphMapper:
             if not dry_run and self.conn:
                 self.conn.merge_node("Keyword", {"name_norm": kw_norm}, {"name": kw_clean})
                 kw_id = self.conn.get_node_id("Keyword", "name_norm", kw_norm)
-            self._ensure_relationship(paper_id, kw_id, "HAS_KEYWORD", dry_run)
+            self._ensure_relationship(metadata_id, kw_id, "HAS_KEYWORD", dry_run)
 
     def _map_object(self, obj: Dict[str, Any], parent_id: Optional[str], parent_uid: str, path_prefix: str,
                     dry_run: bool, skip_keys: Optional[Set[str]] = None):

@@ -554,7 +554,8 @@ QUALITY_RATER_PROMPT = """你是一位严格的学术抽取结果评审员。请
 - 评分范围 0-100（整数）
 - 准确性权重最高（严禁臆造）
 - 每个value是否独立可读（句子完整，包含必要上下文）
-- 对需要segment_map的字段，是否逐句标注证据
+- 每条陈述是否提供 evidence_segment_ids，且可在证据库中追溯
+- logic_chains 是否完整且顺序合理
 - 关键字段是否缺失或空泛
 
 【输出格式（只输出JSON）】
@@ -569,14 +570,13 @@ CONTENT_REWRITE_PROMPT = """你是一位严格的学术抽取修订专家。请�
 
 【修订目标】
 1) 每个value必须是完整可读的句子，避免缺主语/缺上下文
-2) 合并字段（如research_objectives、key_findings、limitations、future_work等）必须多句且逐句有segment_map证据
-3) 不允许添加原文没有的信息；如无证据必须删除该句
+2) 每条陈述必须有 evidence_segment_ids 且可追溯到证据库
+3) 不允许添加原文没有的信息；如无证据必须删除该条
 4) 允许更详细但必须忠实原文
 5) 仅允许schema中的字段，不要新增任何字段
-6) 不要输出任何 location_hint 字段
-7) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现
-8) 若 citation.value 为空字符串，则 citation_text 必须为原句；若 citation.value 有编号，则 citation_text 必须为 null
-9) 对合并字段的 source_excerpt 必须是对象，包含 text 与 segment_map，严禁输出为字符串
+6) 逻辑链需保持“背景→空白→问题/假设→方法→结果→结论”的顺序
+7) 引用仅来自证据片段中的引用编号
+8) methods/results/conclusions 需保持“main + supports”结构
 
 【原文】
 {paper_text}
@@ -646,53 +646,55 @@ FULL_EXTRACT_PROMPT_BASE = """你是学术抽取助手。请一次性输出所�
 # 研究叙事抽取提示（仅 research_narrative）
 RESEARCH_NARRATIVE_PROMPT_BASE = """你是资深学术分析专家。只抽取 research_narrative 部分。
 
-论文文本：
-{text}
+【证据片段库（已编号，必须从中选用）】
+{evidence_pool}
 
-要求：
-1) 输出必须符合“输出格式”中的schema，不得新增任何字段。
-2) 每个value必须是完整、可独立阅读的句子。
-3) 对合并字段需多句表达，并在 source_excerpt.segment_map 中逐句给证据。
-4) 严禁臆造；若原文无信息，按schema允许的空值输出。
-5) 对合并字段的 source_excerpt 必须是对象，包含 text 与 segment_map，严禁输出为字符串。
-6) 不要输出任何 location_hint 字段。
-7) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现。
-8) 若原文无编号，则 citation.value 设为 ""，并在 citation_text 中写原句；若有编号，citation_text 必须为 null。
+【要求】
+1) 输出必须符合“输出格式”中的schema，不得新增字段。
+2) 每条 value 必须是完整、可独立阅读的句子。
+3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据片段库中已有的ID。
+4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
+5) background / research_gaps / research_questions / hypotheses 为“多条陈述列表”。
+6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构：
+   - main：1条总括性主结论（可为 null）
+   - supports：若干条支撑子结论（可为空数组）
+7) citations 字段用于记录引用及其作用说明：
+   - citations 列表中的 citation_id 应来自证据片段中的数字引用（如 [3]）。
+   - citation_text 可置为 null（后续系统会补全）。
+   - purpose 若无法判断，可暂时输出空字符串 ""。
+8) logic_chains 必须是“多条链”，按研究问题/假设拆分：
+   - question_ids/hypothesis_ids 对应 research_questions/hypotheses 中的 node_id
+   - steps 为该链条的 node_id 顺序列表（背景→空白→问题/假设→方法main→结果main→结论main）
 9) 仅输出JSON。
 
 {OUTPUT_FORMAT_SECTION}"""
 
 
 # Research narrative evidence map prompt (stage 1)
-RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据定位助手。请从给定的章节文本中提取每个部分最相关的原文句子或片段（作为证据）。
+RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据选择助手。请仅从给定的证据片段库中选择最相关的片段ID。
 
-【背景相关文本】
-{background_text}
-
-【问题定义相关文本】
-{problem_text}
-
-【方法相关文本】
-{method_text}
-
-【结果相关文本】
-{results_text}
-
-【讨论与结论相关文本】
-{discussion_text}
+【证据片段库】
+{evidence_pool}
 
 【要求】
-1) 每个部分输出 3-8 条最相关原文句子/片段（按重要性排序）。
-2) 必须是原文中的句子/片段，不要改写。
-3) 如果确实没有内容，输出空数组。
+1) 只能输出证据库中已有的ID，不得编造。
+2) 尽量覆盖全文与主要章节（引言/方法/结果/讨论/结论），每个章节至少选1条可用证据。
+3) 背景/空白/问题/假设应尽量覆盖论文主线，必要时可多选。
+4) 方法/结果/结论分为 main 与 supports：main 代表总括性陈述的证据。
+5) 如果确实没有证据，请输出空数组。
 
 【输出（仅JSON）】
 {
-  "background": [],
-  "problem_formulation": [],
-  "methodology": [],
-  "results_and_findings": [],
-  "discussion_and_conclusion": []
+  "background_ids": [],
+  "research_gap_ids": [],
+  "research_question_ids": [],
+  "hypothesis_ids": [],
+  "method_main_ids": [],
+  "method_support_ids": [],
+  "result_main_ids": [],
+  "result_support_ids": [],
+  "conclusion_main_ids": [],
+  "conclusion_support_ids": []
 }
 """
 
@@ -700,21 +702,21 @@ RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据定位助手。请从�
 # Research narrative synthesis prompt (stage 2)
 RESEARCH_NARRATIVE_SYNTH_PROMPT = """你是资深学术分析专家。只抽取 research_narrative 部分。
 
-【论文全文】
-{text}
+【证据片段库（已编号，必须从中选用）】
+{evidence_pool}
 
-【已定位的证据片段（按部分）】
-{evidence_map}
+【已选证据ID（来自上一步）】
+{selected_ids}
 
 【要求】
-1) 输出必须符合“输出格式”中的schema，不得新增任何字段。
-2) 每个value必须是完整、可独立阅读的句子。
-3) 对合并字段需多句表达，并在 source_excerpt.segment_map 中逐句给证据。
-4) source_excerpt 必须是对象，包含 text 与 segment_map。
-5) 严禁臆造；若原文无信息，按schema允许的空值输出。
-6) citation_text 仅允许出现在 foundational_works.citation 中，其他位置严禁出现。
-7) 若原文无编号，则 citation.value 设为 ""，并在 citation_text 中写原句；若有编号，citation_text 必须为 null。
-8) 优先使用“证据片段”中的句子作为 segment_map 的 excerpt。
+1) 输出必须符合“输出格式”中的schema，不得新增字段。
+2) 每条 value 必须是完整、可独立阅读的句子。
+3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据库中已有的ID。
+4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
+5) background / research_gaps / research_questions / hypotheses 为多条陈述列表。
+6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构。
+7) citations 字段用于记录引用及其作用说明；若无法判断可先置空字符串。
+8) logic_chains 必须是“多条链”，按研究问题/假设拆分，steps 只包含主链 node_id（背景→空白→问题/假设→方法main→结果main→结论main），不要包含 supports。
 9) 仅输出JSON。
 
 {OUTPUT_FORMAT_SECTION}"""

@@ -47,7 +47,7 @@ workflow:
   retry_attempts: 1
   retry_delay: 0
   api_timeout: 300
-  extraction_mode: multi
+  extraction_mode: narrative_only
   enable_targeted_fallback: false
   iterative_refine:
     enable: false
@@ -92,3 +92,13 @@ keywords:
 
 citation_purpose:
   enable: false
+
+narrative:
+  min_counts:
+    background: 1
+    research_gaps: 1
+    research_questions: 0
+    hypotheses: 0
+  evidence_pool:
+    per_section_min: 2
+    per_section_max: 10

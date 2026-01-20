@@ -21,6 +21,11 @@
         enable: false
         strict: false
         schema_name: research_narrative
+    research_narrative_selector:
+      provider: deepseek
+      model: deepseek-chat
+      max_tokens: 3000
+      temperature: 0.2
     research_narrative_fallback:
       provider: deepseek
       model: deepseek-chat
@@ -108,6 +113,21 @@ context:
   refinement_context_length: 500000
   refinement_result_length: 20000
   evidence_max_chars: 20000
+  evidence_max_segments: 200
+  citation_context_chars: 2000
+
+narrative:
+  min_counts:
+    background: 3
+    research_gaps: 1
+    research_questions: 1
+    hypotheses: 0
+  evidence_pool:
+    per_section_min: 10
+    per_section_max: 80
+  chain_context_max:
+    background: 1
+    research_gaps: 1
 
 logging:
   output_dir: logs

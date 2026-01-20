@@ -16,6 +16,7 @@ from core.validation import SchemaValidator
 from core.scoring import rule_score
 from core.crossref import CrossrefClient, CrossrefDataExtractor
 from core.keywords import extract_keywords
+from core.segmenter import build_evidence_segments
 from llm.prompts import (
     METADATA_PROMPT_BASE,
     BACKGROUND_PROMPT_BASE,
@@ -277,56 +278,377 @@ class PaperKGExtractor:
             joined[k] = text_block
         return joined
 
-    async def _extract_evidence_map(self, paper_text: str, agent_name: str = "research_narrative") -> Dict[str, List[str]]:
-        contexts = self._build_section_contexts(paper_text)
-        prompt = RESEARCH_NARRATIVE_EVIDENCE_PROMPT
-        prompt = prompt.replace("{background_text}", contexts.get("background", ""))
-        prompt = prompt.replace("{problem_text}", contexts.get("problem_formulation", ""))
-        prompt = prompt.replace("{method_text}", contexts.get("methodology", ""))
-        prompt = prompt.replace("{results_text}", contexts.get("results_and_findings", ""))
-        prompt = prompt.replace("{discussion_text}", contexts.get("discussion_and_conclusion", ""))
+    def _build_evidence_segments(self, text: str) -> List[Dict[str, Any]]:
+        return build_evidence_segments(text)
 
-        agent_cfg = self.config.agent_configs.get(agent_name, {})
-        provider = agent_cfg.get('provider', self.config.default_provider)
-        model = agent_cfg.get('model')
-        max_tokens = agent_cfg.get('max_tokens', 4000)
-        temperature = 0.1
-        client = build_client(self.config, provider)
-        try:
-            response = await client.call(
-                model=model,
-                prompt=prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                retries=self.workflow.get('retry_attempts', 3),
-                retry_delay=self.workflow.get('retry_delay', 2),
+    @staticmethod
+    def _clean_segment_text(text: str) -> str:
+        return " ".join(text.split()) if isinstance(text, str) else ""
+
+    @staticmethod
+    def _downsample_uniform(items: List[Dict[str, Any]], max_items: int) -> List[Dict[str, Any]]:
+        if max_items <= 0 or len(items) <= max_items:
+            return items
+        if max_items == 1:
+            return [items[0]]
+        total = len(items)
+        step = (total - 1) / float(max_items - 1)
+        indices: List[int] = []
+        used = set()
+        for i in range(max_items):
+            idx = int(round(i * step))
+            if idx in used:
+                j = idx
+                while j < total and j in used:
+                    j += 1
+                if j >= total:
+                    j = idx
+                    while j >= 0 and j in used:
+                        j -= 1
+                idx = max(0, j)
+            if idx not in used:
+                used.add(idx)
+                indices.append(idx)
+        indices = sorted(indices)
+        selected = [items[i] for i in indices if 0 <= i < total]
+        if len(selected) < max_items:
+            for item in items:
+                if item not in selected:
+                    selected.append(item)
+                    if len(selected) >= max_items:
+                        break
+        return selected
+
+    def _build_evidence_pool(self, segments: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        section_keys = [
+            "background",
+            "problem_formulation",
+            "methodology",
+            "results_and_findings",
+            "discussion_and_conclusion",
+        ]
+        pool: Dict[str, List[Dict[str, Any]]] = {k: [] for k in section_keys}
+        for seg in segments:
+            section = seg.get("section")
+            if section == "references":
+                continue
+            if section not in pool:
+                section = "background"
+            cleaned = self._clean_segment_text(seg.get("text", ""))
+            pool[section].append(
+                {
+                    "id": seg.get("id"),
+                    "text": cleaned,
+                    "citations": seg.get("citations", []),
+                    "section": section,
+                }
             )
-            evidence = self._parse_json(response)
-        except Exception as exc:
-            logger.warning(f"Evidence map extraction failed: {exc}")
-            evidence = {}
-        if not isinstance(evidence, dict):
-            evidence = {}
+        narrative_cfg = self.config.get("narrative", {})
+        pool_cfg = narrative_cfg.get("evidence_pool", {}) if isinstance(narrative_cfg, dict) else {}
+        per_section_max = int(pool_cfg.get("per_section_max", 120))
+        per_section_min = int(pool_cfg.get("per_section_min", 20))
+        max_total = int(self.context.get("evidence_max_segments", 400))
 
-        # Ensure keys exist and are lists
+        trimmed: Dict[str, List[Dict[str, Any]]] = {}
+        for section in section_keys:
+            items = pool.get(section, [])
+            if per_section_max > 0:
+                trimmed_items = self._downsample_uniform(items, per_section_max)
+            else:
+                trimmed_items = items
+            trimmed[section] = trimmed_items
+
+        total = sum(len(items) for items in trimmed.values())
+        if max_total > 0 and total > max_total:
+            # Reduce while keeping per_section_min
+            reduced: Dict[str, List[Dict[str, Any]]] = {}
+            for section in section_keys:
+                items = trimmed.get(section, [])
+                reduced[section] = items[:max(per_section_min, 0)]
+            remaining = max_total - sum(len(items) for items in reduced.values())
+            if remaining > 0:
+                for section in section_keys:
+                    if remaining <= 0:
+                        break
+                    items = trimmed.get(section, [])
+                    offset = len(reduced[section])
+                    extras = items[offset:]
+                    if not extras:
+                        continue
+                    take = min(len(extras), remaining)
+                    reduced[section].extend(extras[:take])
+                    remaining -= take
+            return reduced
+        return trimmed
+
+    def _rank_segments_by_keywords(self, segments: List[Dict[str, Any]], keywords: List[str]) -> List[Dict[str, Any]]:
+        if not segments:
+            return []
+        if not keywords:
+            return segments
+        scored = []
+        for seg in segments:
+            text = seg.get("text", "")
+            if not isinstance(text, str):
+                text = ""
+            text_lower = text.lower()
+            score = 0
+            for kw in keywords:
+                if kw in text_lower:
+                    score += 1
+            if score > 0:
+                scored.append((score, seg))
+        if not scored:
+            return segments
+        scored.sort(key=lambda x: (-x[0], x[1].get("id", "")))
+        return [seg for _score, seg in scored]
+
+    def _ensure_minimum_evidence(
+        self,
+        selections: Dict[str, List[str]],
+        evidence_pool: Dict[str, List[Dict[str, Any]]],
+    ) -> Dict[str, List[str]]:
+        narrative_cfg = self.config.get("narrative", {})
+        min_cfg = narrative_cfg.get("min_counts", {}) if isinstance(narrative_cfg, dict) else {}
+        default_min = {
+            "background": 3,
+            "research_gaps": 1,
+            "research_questions": 1,
+            "hypotheses": 0,
+        }
+        # Keyword heuristics
+        keyword_map = {
+            "background": ["background", "overview", "introduction", "\u80cc\u666f", "\u5f15\u8a00"],
+            "research_gaps": ["gap", "lack", "limited", "unknown", "challenge", "\u7a7a\u767d", "\u5c40\u9650"],
+            "research_questions": ["question", "aim", "objective", "goal", "whether", "\u95ee\u9898", "\u76ee\u6807", "\u76ee\u7684"],
+            "hypotheses": ["hypothesis", "we hypothesize", "assume", "\u5047\u8bbe", "\u5047\u8bba"],
+        }
+
+        mapping = {
+            "background": "background_ids",
+            "research_gaps": "research_gap_ids",
+            "research_questions": "research_question_ids",
+            "hypotheses": "hypothesis_ids",
+        }
+
+        for key, sel_key in mapping.items():
+            target_min = int(min_cfg.get(key, default_min.get(key, 0)))
+            current = selections.get(sel_key, [])
+            if not isinstance(current, list):
+                current = []
+            current_ids = [cid for cid in current if isinstance(cid, str)]
+            if len(current_ids) >= target_min:
+                selections[sel_key] = current_ids
+                continue
+
+            pool_section = "background"
+            if key == "research_gaps":
+                pool_section = "problem_formulation"
+            elif key == "research_questions":
+                pool_section = "problem_formulation"
+            elif key == "hypotheses":
+                pool_section = "problem_formulation"
+            segments = evidence_pool.get(pool_section, [])
+            ranked = self._rank_segments_by_keywords(segments, keyword_map.get(key, []))
+            for seg in ranked:
+                sid = seg.get("id")
+                if not isinstance(sid, str):
+                    continue
+                if sid in current_ids:
+                    continue
+                current_ids.append(sid)
+                if len(current_ids) >= target_min:
+                    break
+            selections[sel_key] = current_ids
+        return selections
+
+    def _ensure_main_support_ids(
+        self,
+        selections: Dict[str, List[str]],
+        evidence_pool: Dict[str, List[Dict[str, Any]]],
+    ) -> Dict[str, List[str]]:
+        mapping = {
+            "method_main_ids": "methodology",
+            "result_main_ids": "results_and_findings",
+            "conclusion_main_ids": "discussion_and_conclusion",
+        }
+        for sel_key, section in mapping.items():
+            ids = selections.get(sel_key, [])
+            if not isinstance(ids, list):
+                ids = []
+            if ids:
+                continue
+            segments = evidence_pool.get(section, [])
+            if segments:
+                first_id = segments[0].get("id")
+                if isinstance(first_id, str):
+                    selections[sel_key] = [first_id]
+        return selections
+
+    @staticmethod
+    def _build_citation_entries(citations: List[Any]) -> List[Dict[str, Any]]:
+        if not isinstance(citations, list):
+            return []
+        entries = []
+        for cite in citations:
+            if cite is None:
+                continue
+            cid = str(cite).strip()
+            if not cid:
+                continue
+            entries.append({"citation_id": cid, "citation_text": None, "purpose": ""})
+        return entries
+
+    def _backfill_narrative_with_selected_ids(
+        self,
+        narrative: Dict[str, Any],
+        selected_ids: Dict[str, List[str]],
+        evidence_pool: Dict[str, List[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        if not isinstance(narrative, dict):
+            return narrative
+        if not isinstance(selected_ids, dict):
+            return narrative
+
+        id_to_item: Dict[str, Dict[str, Any]] = {}
+        for items in evidence_pool.values():
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                sid = item.get("id")
+                if isinstance(sid, str) and sid not in id_to_item:
+                    id_to_item[sid] = item
+
+        def _existing_ids(items: List[Dict[str, Any]]) -> set:
+            ids = set()
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                evid = item.get("evidence_segment_ids")
+                if isinstance(evid, list):
+                    for sid in evid:
+                        if isinstance(sid, str):
+                            ids.add(sid)
+            return ids
+
+        def _make_item(seg_id: str) -> Optional[Dict[str, Any]]:
+            item = id_to_item.get(seg_id)
+            if not isinstance(item, dict):
+                return None
+            text = item.get("text", "")
+            if not isinstance(text, str) or not text.strip():
+                return None
+            citations = self._build_citation_entries(item.get("citations", []))
+            return {
+                "value": text.strip(),
+                "evidence_segment_ids": [seg_id],
+                "citations": citations,
+            }
+
+        # List sections backfill
+        list_mapping = {
+            "background": "background_ids",
+            "research_gaps": "research_gap_ids",
+            "research_questions": "research_question_ids",
+            "hypotheses": "hypothesis_ids",
+        }
+        for section, sel_key in list_mapping.items():
+            items = narrative.get(section)
+            if not isinstance(items, list):
+                items = []
+            existing = _existing_ids(items)
+            selected = selected_ids.get(sel_key, [])
+            if not isinstance(selected, list):
+                selected = []
+            for sid in selected:
+                if not isinstance(sid, str) or sid in existing:
+                    continue
+                new_item = _make_item(sid)
+                if new_item:
+                    items.append(new_item)
+                    existing.add(sid)
+            narrative[section] = items
+
+        # Main/support blocks backfill
+        block_mapping = (
+            ("methods", "method_main_ids", "method_support_ids"),
+            ("results", "result_main_ids", "result_support_ids"),
+            ("conclusions", "conclusion_main_ids", "conclusion_support_ids"),
+        )
+        for block_name, main_key, support_key in block_mapping:
+            block = narrative.get(block_name)
+            if not isinstance(block, dict):
+                block = {"main": None, "supports": []}
+            main = block.get("main")
+            supports = block.get("supports")
+            if not isinstance(supports, list):
+                supports = []
+            existing_support_ids = _existing_ids(supports)
+            if isinstance(main, dict):
+                existing_support_ids |= _existing_ids([main])
+
+            main_ids = selected_ids.get(main_key, [])
+            if (main is None or not isinstance(main, dict)) and isinstance(main_ids, list) and main_ids:
+                main_item = _make_item(main_ids[0])
+                if main_item:
+                    block["main"] = main_item
+                    existing_support_ids.add(main_ids[0])
+
+            support_ids = selected_ids.get(support_key, [])
+            if isinstance(support_ids, list):
+                for sid in support_ids:
+                    if not isinstance(sid, str) or sid in existing_support_ids:
+                        continue
+                    new_item = _make_item(sid)
+                    if new_item:
+                        supports.append(new_item)
+                        existing_support_ids.add(sid)
+
+            block["supports"] = supports
+            narrative[block_name] = block
+
+        return narrative
+
+    async def _select_evidence_ids(
+        self,
+        evidence_pool: Dict[str, List[Dict[str, Any]]],
+        agent_name: str = "research_narrative_selector",
+    ) -> Dict[str, List[str]]:
+        prompt = RESEARCH_NARRATIVE_EVIDENCE_PROMPT.replace(
+            "{evidence_pool}", json.dumps(evidence_pool, ensure_ascii=False, indent=2)
+        )
+        try:
+            selected = await self._call_agent(agent_name, prompt, "", strict_json=True)
+        except Exception as exc:
+            logger.warning(f"Evidence id selection failed: {exc}")
+            selected = {}
+        if not isinstance(selected, dict):
+            selected = {}
+        # Normalize lists
+        keys = [
+            "background_ids",
+            "research_gap_ids",
+            "research_question_ids",
+            "hypothesis_ids",
+            "method_main_ids",
+            "method_support_ids",
+            "result_main_ids",
+            "result_support_ids",
+            "conclusion_main_ids",
+            "conclusion_support_ids",
+        ]
         normalized: Dict[str, List[str]] = {}
-        for key in ["background", "problem_formulation", "methodology", "results_and_findings", "discussion_and_conclusion"]:
-            items = evidence.get(key, [])
+        for key in keys:
+            items = selected.get(key, [])
             if isinstance(items, list):
-                normalized[key] = [str(i).strip() for i in items if isinstance(i, (str, int, float)) and str(i).strip()]
+                normalized[key] = [str(i).strip() for i in items if isinstance(i, (str, int)) and str(i).strip()]
             else:
                 normalized[key] = []
+        normalized = self._ensure_minimum_evidence(normalized, evidence_pool)
+        normalized = self._ensure_main_support_ids(normalized, evidence_pool)
         return normalized
-
-    async def _synthesize_research_narrative(
-        self,
-        paper_text: str,
-        evidence_map: Dict[str, List[str]],
-        agent_name: str = "research_narrative",
-    ) -> Dict[str, Any]:
-        evidence_text = json.dumps(evidence_map, ensure_ascii=False, indent=2)
-        prompt = RESEARCH_NARRATIVE_SYNTH_PROMPT.replace("{text}", paper_text).replace("{evidence_map}", evidence_text)
-        return await self._call_agent(agent_name, prompt, "", strict_json=True)
 
     def _extract_doi_from_text(self, text: str) -> Optional[str]:
         import re
@@ -463,18 +785,25 @@ class PaperKGExtractor:
                 logger.warning(f"Multimedia retry failed: {exc}")
         return multimedia
 
-    async def _extract_research_narrative(self, paper_text: str) -> Dict[str, Any]:
-        evidence_map: Dict[str, List[str]] = {}
+    async def _extract_research_narrative(
+        self,
+        paper_text: str,
+        evidence_segments: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        evidence_pool = self._build_evidence_pool(evidence_segments)
+        selected_ids = await self._select_evidence_ids(evidence_pool)
+        selected_text = json.dumps(selected_ids, ensure_ascii=False, indent=2)
+        prompt = RESEARCH_NARRATIVE_SYNTH_PROMPT.replace("{evidence_pool}", json.dumps(evidence_pool, ensure_ascii=False, indent=2))
+        prompt = prompt.replace("{selected_ids}", selected_text)
+
         primary_ok = True
         try:
-            evidence_map = await self._extract_evidence_map(paper_text, "research_narrative")
-            narrative = await self._synthesize_research_narrative(paper_text, evidence_map, "research_narrative")
+            narrative = await self._call_agent("research_narrative", prompt, "", strict_json=True)
         except Exception as exc:
             logger.warning(f"Research narrative extraction failed: {exc}")
             primary_ok = False
             try:
-                evidence_map = await self._extract_evidence_map(paper_text, "research_narrative_fallback")
-                narrative = await self._synthesize_research_narrative(paper_text, evidence_map, "research_narrative_fallback")
+                narrative = await self._call_agent("research_narrative_fallback", prompt, "", strict_json=True)
                 logger.warning("Research narrative fallback used: deepseek")
             except Exception as fallback_exc:
                 logger.warning(f"Research narrative fallback failed: {fallback_exc}")
@@ -485,45 +814,76 @@ class PaperKGExtractor:
             if self._needs_narrative_retry(narrative):
                 try:
                     retry_agent = "research_narrative" if primary_ok else "research_narrative_fallback"
-                    retry_narrative = await self._synthesize_research_narrative(paper_text, evidence_map, retry_agent)
+                    retry_narrative = await self._call_agent(retry_agent, prompt, "", strict_json=True)
                     if isinstance(retry_narrative, dict):
                         narrative = self._merge_preserve(narrative, retry_narrative)
                 except Exception as exc:
                     logger.warning(f"Research narrative retry failed: {exc}")
+            narrative = self._ensure_research_narrative_sections(narrative)
+            narrative = self._backfill_narrative_with_selected_ids(narrative, selected_ids, evidence_pool)
             return self._ensure_research_narrative_sections(narrative)
         return {}
 
-    @staticmethod
-    def _needs_narrative_retry(narrative: Dict[str, Any]) -> bool:
-        fields = [
-            ("background", "state_of_the_art_summary"),
-            ("problem_formulation", "research_gap"),
-            ("problem_formulation", "research_objectives"),
-            ("methodology", "method_description"),
-            ("results_and_findings", "key_findings"),
-            ("discussion_and_conclusion", "final_conclusion"),
+    def _needs_narrative_retry(self, narrative: Dict[str, Any]) -> bool:
+        narrative_cfg = self.config.get("narrative", {})
+        min_cfg = narrative_cfg.get("min_counts", {}) if isinstance(narrative_cfg, dict) else {}
+        default_min = {"background": 1, "research_gaps": 1, "research_questions": 0, "hypotheses": 0}
+        for key, default_val in default_min.items():
+            target_min = int(min_cfg.get(key, default_val))
+            if target_min <= 0:
+                continue
+            items = narrative.get(key)
+            if not isinstance(items, list) or len(items) < target_min:
+                return True
+
+        methods = narrative.get("methods", {})
+        results = narrative.get("results", {})
+        conclusions = narrative.get("conclusions", {})
+        main_nodes = [
+            methods.get("main") if isinstance(methods, dict) else None,
+            results.get("main") if isinstance(results, dict) else None,
+            conclusions.get("main") if isinstance(conclusions, dict) else None,
         ]
-        for section, key in fields:
-            node = narrative.get(section, {}).get(key)
+        for node in main_nodes:
+            if node is None:
+                return True
             if not isinstance(node, dict):
                 return True
             value = node.get("value")
             if value in (None, "", [], {}):
                 return True
+        chains = narrative.get("logic_chains")
+        if not isinstance(chains, list) or len(chains) == 0:
+            return True
         return False
 
     @staticmethod
     def _ensure_research_narrative_sections(narrative: Dict[str, Any]) -> Dict[str, Any]:
-        required_sections = {
-            "background",
-            "problem_formulation",
-            "methodology",
-            "results_and_findings",
-            "discussion_and_conclusion",
+        if not isinstance(narrative, dict):
+            return {}
+        defaults = {
+            "background": [],
+            "research_gaps": [],
+            "research_questions": [],
+            "hypotheses": [],
+            "methods": {"main": None, "supports": []},
+            "results": {"main": None, "supports": []},
+            "conclusions": {"main": None, "supports": []},
+            "logic_chains": [],
         }
-        for key in required_sections:
-            if key not in narrative or not isinstance(narrative.get(key), dict):
-                narrative[key] = {}
+        for key, default in defaults.items():
+            if key not in narrative or not isinstance(narrative.get(key), type(default)):
+                narrative[key] = default
+        # Normalize nested structures
+        for section in ("methods", "results", "conclusions"):
+            block = narrative.get(section)
+            if not isinstance(block, dict):
+                narrative[section] = {"main": None, "supports": []}
+                continue
+            if "main" not in block:
+                block["main"] = None
+            if not isinstance(block.get("supports"), list):
+                block["supports"] = []
         return narrative
 
     async def _refine_research_narrative(self, narrative: Dict[str, Any], paper_text: str) -> Dict[str, Any]:
@@ -943,6 +1303,410 @@ class PaperKGExtractor:
         key_findings["supporting_evidence"] = normalized
 
     @staticmethod
+    def _iter_logic_items(narrative: Dict[str, Any]):
+        if not isinstance(narrative, dict):
+            return
+        list_sections = [
+            ("background", "B"),
+            ("research_gaps", "G"),
+            ("research_questions", "Q"),
+            ("hypotheses", "H"),
+        ]
+        for section, prefix in list_sections:
+            items = narrative.get(section)
+            if isinstance(items, list):
+                for idx, item in enumerate(items):
+                    yield f"{section}[{idx}]", item, prefix
+
+        for block_name, prefix_main, prefix_support in (
+            ("methods", "M", "MS"),
+            ("results", "R", "RS"),
+            ("conclusions", "C", "CS"),
+        ):
+            block = narrative.get(block_name)
+            if not isinstance(block, dict):
+                continue
+            main = block.get("main")
+            if isinstance(main, dict):
+                yield f"{block_name}.main", main, prefix_main
+            supports = block.get("supports")
+            if isinstance(supports, list):
+                for idx, item in enumerate(supports):
+                    yield f"{block_name}.supports[{idx}]", item, prefix_support
+
+    def _normalize_logic_item(
+        self,
+        item: Dict[str, Any],
+        prefix: str,
+        counter: int,
+        segments_by_id: Dict[str, Dict[str, Any]],
+        used_ids: set,
+    ) -> Optional[Dict[str, Any]]:
+        if not isinstance(item, dict):
+            return None
+        value = item.get("value")
+        if not isinstance(value, str) or not value.strip():
+            return None
+        evidence_ids = item.get("evidence_segment_ids")
+        if not isinstance(evidence_ids, list):
+            evidence_ids = []
+        filtered_ids = []
+        seen = set()
+        for sid in evidence_ids:
+            if not isinstance(sid, str):
+                continue
+            if sid in segments_by_id and sid not in seen:
+                seen.add(sid)
+                filtered_ids.append(sid)
+        if not filtered_ids:
+            return None
+
+        node_id = item.get("node_id")
+        if not isinstance(node_id, str) or not node_id.strip():
+            node_id = f"{prefix}{counter}"
+        node_id = node_id.strip()
+        if node_id in used_ids:
+            node_id = f"{node_id}_{counter}"
+        used_ids.add(node_id)
+
+        citations = item.get("citations")
+        if not isinstance(citations, list):
+            citations = []
+        normalized_citations = []
+        for cite in citations:
+            if not isinstance(cite, dict):
+                continue
+            citation_id = cite.get("citation_id")
+            if citation_id is not None and not isinstance(citation_id, str):
+                citation_id = str(citation_id)
+            citation_text = cite.get("citation_text")
+            if citation_text is not None and not isinstance(citation_text, str):
+                citation_text = str(citation_text)
+            purpose = cite.get("purpose")
+            if not isinstance(purpose, str):
+                purpose = ""
+            normalized_citations.append(
+                {
+                    "citation_id": citation_id,
+                    "citation_text": citation_text,
+                    "purpose": purpose,
+                }
+            )
+
+        item = dict(item)
+        item["node_id"] = node_id
+        item["value"] = value.strip()
+        item["evidence_segment_ids"] = filtered_ids
+        item["citations"] = normalized_citations
+        return item
+
+    def _normalize_research_narrative(self, logic_chain: Dict[str, Any], segments_by_id: Dict[str, Dict[str, Any]]) -> None:
+        narrative = logic_chain.get("research_narrative")
+        if not isinstance(narrative, dict):
+            return
+        narrative = self._ensure_research_narrative_sections(narrative)
+        used_ids: set = set()
+        counters = {"B": 1, "G": 1, "Q": 1, "H": 1, "M": 1, "MS": 1, "R": 1, "RS": 1, "C": 1, "CS": 1}
+
+        # Normalize list sections
+        for section, prefix in (("background", "B"), ("research_gaps", "G"), ("research_questions", "Q"), ("hypotheses", "H")):
+            items = narrative.get(section, [])
+            normalized = []
+            if isinstance(items, list):
+                for item in items:
+                    normalized_item = self._normalize_logic_item(
+                        item,
+                        prefix,
+                        counters[prefix],
+                        segments_by_id,
+                        used_ids,
+                    )
+                    if normalized_item:
+                        normalized.append(normalized_item)
+                        counters[prefix] += 1
+            narrative[section] = normalized
+
+        # Normalize main/support blocks
+        for block_name, prefix_main, prefix_support in (
+            ("methods", "M", "MS"),
+            ("results", "R", "RS"),
+            ("conclusions", "C", "CS"),
+        ):
+            block = narrative.get(block_name, {})
+            if not isinstance(block, dict):
+                block = {"main": None, "supports": []}
+            main = block.get("main")
+            normalized_main = None
+            if isinstance(main, dict):
+                normalized_main = self._normalize_logic_item(
+                    main,
+                    prefix_main,
+                    counters[prefix_main],
+                    segments_by_id,
+                    used_ids,
+                )
+                if normalized_main:
+                    counters[prefix_main] += 1
+            supports = block.get("supports")
+            normalized_supports = []
+            if isinstance(supports, list):
+                for item in supports:
+                    normalized_item = self._normalize_logic_item(
+                        item,
+                        prefix_support,
+                        counters[prefix_support],
+                        segments_by_id,
+                        used_ids,
+                    )
+                    if normalized_item:
+                        normalized_supports.append(normalized_item)
+                        counters[prefix_support] += 1
+            narrative[block_name] = {"main": normalized_main, "supports": normalized_supports}
+
+        self._normalize_logic_chains(narrative, used_ids)
+        logic_chain["research_narrative"] = narrative
+
+    def _normalize_logic_chains(self, narrative: Dict[str, Any], node_ids: set) -> None:
+        # Always rebuild canonical chains to ensure main-only steps and multi-chain split
+        narrative["logic_chains"] = self._build_default_chains(narrative)
+
+    def _build_default_chains(self, narrative: Dict[str, Any]) -> List[Dict[str, Any]]:
+        def _first_id(items: List[Dict[str, Any]]) -> Optional[str]:
+            if items:
+                node_id = items[0].get("node_id")
+                if isinstance(node_id, str):
+                    return node_id
+            return None
+        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
+        chain_cfg = narrative_cfg.get("chain_context_max", {}) if isinstance(narrative_cfg.get("chain_context_max", {}), dict) else {}
+        max_bg = int(chain_cfg.get("background", 1))
+        max_gap = int(chain_cfg.get("research_gaps", 1))
+
+        background_items = narrative.get("background", []) if isinstance(narrative.get("background"), list) else []
+        gap_items = narrative.get("research_gaps", []) if isinstance(narrative.get("research_gaps"), list) else []
+        background_ids = [item.get("node_id") for item in background_items if isinstance(item, dict) and isinstance(item.get("node_id"), str)]
+        gap_ids = [item.get("node_id") for item in gap_items if isinstance(item, dict) and isinstance(item.get("node_id"), str)]
+        if max_bg > 0:
+            background_ids = background_ids[:max_bg]
+        if max_gap > 0:
+            gap_ids = gap_ids[:max_gap]
+
+        method_main = narrative.get("methods", {}).get("main") if isinstance(narrative.get("methods"), dict) else None
+        result_main = narrative.get("results", {}).get("main") if isinstance(narrative.get("results"), dict) else None
+        conclusion_main = narrative.get("conclusions", {}).get("main") if isinstance(narrative.get("conclusions"), dict) else None
+        method_id = method_main.get("node_id") if isinstance(method_main, dict) else None
+        result_id = result_main.get("node_id") if isinstance(result_main, dict) else None
+        conclusion_id = conclusion_main.get("node_id") if isinstance(conclusion_main, dict) else None
+
+        chains: List[Dict[str, Any]] = []
+        questions = narrative.get("research_questions", []) if isinstance(narrative.get("research_questions"), list) else []
+        hypotheses = narrative.get("hypotheses", []) if isinstance(narrative.get("hypotheses"), list) else []
+
+        def _build_steps(anchor_id: Optional[str]) -> List[str]:
+            steps: List[str] = []
+            steps.extend([sid for sid in background_ids if sid])
+            steps.extend([sid for sid in gap_ids if sid])
+            if isinstance(anchor_id, str):
+                steps.append(anchor_id)
+            if isinstance(method_id, str):
+                steps.append(method_id)
+            if isinstance(result_id, str):
+                steps.append(result_id)
+            if isinstance(conclusion_id, str):
+                steps.append(conclusion_id)
+            # Deduplicate while preserving order
+            seen = set()
+            ordered = []
+            for sid in steps:
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                ordered.append(sid)
+            return ordered
+
+        if not questions and not hypotheses:
+            steps = _build_steps(None)
+            if steps:
+                chains.append({"chain_id": "C1", "question_ids": [], "hypothesis_ids": [], "steps": steps})
+            return chains
+
+        chain_idx = 1
+        for items, key in ((questions, "question_ids"), (hypotheses, "hypothesis_ids")):
+            for item in items:
+                node_id = item.get("node_id") if isinstance(item, dict) else None
+                if not isinstance(node_id, str):
+                    continue
+                steps = _build_steps(node_id)
+                if not steps:
+                    continue
+                chains.append(
+                    {
+                        "chain_id": f"C{chain_idx}",
+                        "question_ids": [node_id] if key == "question_ids" else [],
+                        "hypothesis_ids": [node_id] if key == "hypothesis_ids" else [],
+                        "steps": steps,
+                    }
+                )
+                chain_idx += 1
+        return chains
+
+    def _collect_evidence_ids_from_narrative(self, narrative: Dict[str, Any]) -> List[str]:
+        evidence_ids: List[str] = []
+        if not isinstance(narrative, dict):
+            return evidence_ids
+        for _path, item, _prefix in self._iter_logic_items(narrative):
+            if not isinstance(item, dict):
+                continue
+            ids = item.get("evidence_segment_ids")
+            if not isinstance(ids, list):
+                continue
+            for sid in ids:
+                if isinstance(sid, str):
+                    evidence_ids.append(sid)
+        return evidence_ids
+
+    def _build_coverage_report(
+        self,
+        narrative: Dict[str, Any],
+        segments_by_id: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        used_ids = self._collect_evidence_ids_from_narrative(narrative)
+        used_set = set(used_ids)
+        total_segments = len(segments_by_id)
+
+        section_totals: Dict[str, int] = {}
+        section_used: Dict[str, int] = {}
+        for sid, seg in segments_by_id.items():
+            section = seg.get("section") if isinstance(seg, dict) else None
+            if not isinstance(section, str) or not section:
+                section = "unknown"
+            section_totals[section] = section_totals.get(section, 0) + 1
+            if sid in used_set:
+                section_used[section] = section_used.get(section, 0) + 1
+
+        section_stats = {}
+        for section, total in section_totals.items():
+            used = section_used.get(section, 0)
+            section_stats[section] = {
+                "total": total,
+                "used": used,
+                "coverage": round(used / total, 4) if total > 0 else 0.0,
+            }
+
+        unused_ids = [sid for sid in segments_by_id.keys() if sid not in used_set]
+        sample_limit = 200
+        report = {
+            "total_segments": total_segments,
+            "used_segments": len(used_set),
+            "coverage": round(len(used_set) / total_segments, 4) if total_segments > 0 else 0.0,
+            "section_stats": section_stats,
+            "missing_sections": [sec for sec, stats in section_stats.items() if stats["total"] > 0 and stats["used"] == 0],
+            "unused_segment_ids_sample": unused_ids[:sample_limit],
+            "unused_segment_count": len(unused_ids),
+        }
+        return report
+
+    async def _enrich_logic_node_citations(
+        self,
+        logic_chain: Dict[str, Any],
+        segments_by_id: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        enable_purpose = bool(self.citation_purpose_cfg.get("enable", True))
+        narrative = logic_chain.get("research_narrative")
+        if not isinstance(narrative, dict):
+            return logic_chain
+
+        references = (
+            logic_chain.get("multimedia_content", {})
+            .get("references", {})
+            .get("reference_list", [])
+        )
+        ref_by_id: Dict[str, Dict[str, Any]] = {}
+        ref_by_text: Dict[str, Dict[str, Any]] = {}
+        if isinstance(references, list):
+            for ref in references:
+                if not isinstance(ref, dict):
+                    continue
+                ref_id = ref.get("id")
+                if ref_id is not None:
+                    ref_by_id[str(ref_id).strip()] = ref
+                citation_text = ref.get("citation")
+                if isinstance(citation_text, str) and citation_text.strip():
+                    key = " ".join(citation_text.lower().split())
+                    ref_by_text[key] = ref
+
+        async def _fill_purpose(citation_text: str, context: str) -> str:
+            try:
+                return await self._call_citation_purpose_llm(citation_text, context)
+            except Exception as exc:
+                logger.warning(f"Logic node citation purpose failed: {exc}")
+                return ""
+
+        tasks = []
+        task_slots = []
+        max_refs = int(self.citation_purpose_cfg.get("max_refs", 50))
+        context_limit = int(self.context.get("citation_context_chars", 2000))
+
+        for path, item, _prefix in self._iter_logic_items(narrative):
+            if not isinstance(item, dict):
+                continue
+            evidence_ids = item.get("evidence_segment_ids")
+            if not isinstance(evidence_ids, list):
+                evidence_ids = []
+            segment_texts = []
+            for sid in evidence_ids:
+                seg = segments_by_id.get(sid)
+                if not seg:
+                    continue
+                segment_texts.append(self._clean_segment_text(seg.get("text", "")))
+            context = "\n".join(segment_texts)
+            if len(context) > context_limit:
+                context = context[:context_limit]
+
+            citations = item.get("citations")
+            if not isinstance(citations, list):
+                citations = []
+            # If citations empty (or missing ids), derive from segments
+            if not citations or all(
+                isinstance(c, dict) and not c.get("citation_id") and not c.get("citation_text")
+                for c in citations
+            ):
+                derived_ids = []
+                for sid in evidence_ids:
+                    seg = segments_by_id.get(sid)
+                    if not seg:
+                        continue
+                    for cid in seg.get("citations", []):
+                        if cid not in derived_ids:
+                            derived_ids.append(cid)
+                citations = [{"citation_id": cid, "citation_text": None, "purpose": ""} for cid in derived_ids]
+                item["citations"] = citations
+
+            for cite in citations:
+                if not isinstance(cite, dict):
+                    continue
+                if len(tasks) >= max_refs:
+                    break
+                citation_id = cite.get("citation_id")
+                citation_text = cite.get("citation_text")
+                if not citation_text and citation_id:
+                    ref = ref_by_id.get(str(citation_id))
+                    if ref and isinstance(ref.get("citation"), str):
+                        citation_text = ref.get("citation")
+                        cite["citation_text"] = citation_text
+                if not citation_text and citation_id is None:
+                    citation_text = ""
+                if not isinstance(cite.get("purpose"), str) or not cite.get("purpose"):
+                    tasks.append(_fill_purpose(citation_text or "", context))
+                    task_slots.append((cite, "purpose"))
+
+        if enable_purpose and tasks:
+            results = await asyncio.gather(*tasks)
+            for (cite, key), purpose in zip(task_slots, results):
+                if isinstance(purpose, str):
+                    cite[key] = purpose.strip()
+        return logic_chain
+
     def _has_any_keys(obj: Any, keys: set[str]) -> bool:
         if not isinstance(obj, dict):
             return False
@@ -958,6 +1722,11 @@ class PaperKGExtractor:
         file_text = Path(file_path).read_text(encoding=self.config.get('file_processing', {}).get('text_encoding', 'utf-8'))
         paper_text = self._truncate_text(file_text)
         logger.info("Extraction mode: %s | text_chars=%s", self.extraction_mode, len(paper_text))
+        mode = self.extraction_mode
+        if mode != "narrative_only":
+            logger.warning("Narrative v2 only supports narrative_only; falling back for this run.")
+            mode = "narrative_only"
+        evidence_segments = self._build_evidence_segments(file_text)
         stage_times: Dict[str, float] = {}
         extract_start = time.perf_counter()
 
@@ -971,13 +1740,13 @@ class PaperKGExtractor:
 
         logic_chain: Dict[str, Any] = {}
 
-        if self.extraction_mode == 'narrative_only':
+        if mode == 'narrative_only':
             t = time.perf_counter()
             metadata = await self._extract_metadata(paper_text)
             stage_times['metadata'] = time.perf_counter() - t
 
             t = time.perf_counter()
-            narrative = await self._extract_research_narrative(paper_text)
+            narrative = await self._extract_research_narrative(paper_text, evidence_segments)
             stage_times['research_narrative'] = time.perf_counter() - t
 
             t = time.perf_counter()
@@ -991,7 +1760,7 @@ class PaperKGExtractor:
             }
             stage_times['extract'] = time.perf_counter() - extract_start
 
-        elif self.extraction_mode == 'unified':
+        elif mode == 'unified':
             unified = await self._call_agent('full_extractor', FULL_EXTRACT_PROMPT_BASE, paper_text, strict_json=True)
             logic_chain = unified if isinstance(unified, dict) else {}
             if not isinstance(logic_chain.get('paper_metadata'), dict):
@@ -1110,7 +1879,7 @@ class PaperKGExtractor:
         logic_chain['multimedia_content'] = multimedia
         stage_times['crossref'] = time.perf_counter() - t
 
-        if self.extraction_mode != 'narrative_only':
+        if mode != 'narrative_only':
             # Crossref enrichment (metadata only)
             t = time.perf_counter()
             if self.crossref_cfg.get('enable', True):
@@ -1145,7 +1914,7 @@ class PaperKGExtractor:
         max_rounds = int(self.iterative_cfg.get('max_rounds', 3))
         stop_on_no_change = bool(self.iterative_cfg.get('stop_on_no_change', True))
 
-        if iterative_enabled and self.extraction_mode == 'narrative_only':
+        if iterative_enabled and mode == 'narrative_only':
             t = time.perf_counter()
             narrative = logic_chain.get('research_narrative', {})
             threshold = int(self.quality_cfg.get('threshold', 75))
@@ -1219,10 +1988,12 @@ class PaperKGExtractor:
                 logic_chain = await self._repair_json_with_llm(logic_chain, paper_text)
                 stage_times['repair'] = time.perf_counter() - t
 
-        # Normalize segment_map structure for merged fields
-        self._normalize_segment_map_fields(logic_chain)
+        # Normalize narrative and metadata fields
+        segments_by_id = {seg.get("id"): seg for seg in evidence_segments if isinstance(seg, dict) and seg.get("id")}
+        self._normalize_research_narrative(logic_chain, segments_by_id)
         self._normalize_metadata_lists(logic_chain)
-        self._normalize_supporting_evidence(logic_chain)
+        logic_chain = await self._enrich_logic_node_citations(logic_chain, segments_by_id)
+        coverage_report = self._build_coverage_report(logic_chain.get("research_narrative", {}), segments_by_id)
 
         # Validate
         t = time.perf_counter()
@@ -1244,6 +2015,34 @@ class PaperKGExtractor:
             json.dumps(logic_chain, ensure_ascii=self.output_cfg.get('ensure_ascii', False), indent=self.output_cfg.get('indent', 2)),
             encoding='utf-8'
         )
+        # Write evidence segments sidecar file (full coverage of original text)
+        try:
+            sidecar_path = out_path.with_name(f"{out_path.stem}_evidence_segments.json")
+            sidecar_payload = {
+                "source": str(file_path),
+                "segment_count": len(evidence_segments),
+                "segments": evidence_segments,
+            }
+            sidecar_path.write_text(
+                json.dumps(sidecar_payload, ensure_ascii=self.output_cfg.get('ensure_ascii', False), indent=self.output_cfg.get('indent', 2)),
+                encoding='utf-8'
+            )
+        except Exception as exc:
+            logger.warning(f"Evidence sidecar write failed: {exc}")
+        # Write coverage report sidecar
+        try:
+            coverage_path = out_path.with_name(f"{out_path.stem}_coverage.json")
+            coverage_payload = {
+                "source": str(file_path),
+                "output": str(out_path),
+                "coverage": coverage_report,
+            }
+            coverage_path.write_text(
+                json.dumps(coverage_payload, ensure_ascii=self.output_cfg.get('ensure_ascii', False), indent=self.output_cfg.get('indent', 2)),
+                encoding='utf-8'
+            )
+        except Exception as exc:
+            logger.warning(f"Coverage sidecar write failed: {exc}")
         stage_times['output'] = time.perf_counter() - t
 
         refs = logic_chain.get('multimedia_content', {}).get('references', {}).get('reference_list', [])
@@ -1319,10 +2118,9 @@ class PaperKGExtractor:
                     rows = conn.execute_query(
                         f"""
                         MATCH (p:Paper {{{key_type}: $key}})
-                        OPTIONAL MATCH (p)-[:HAS_RESEARCH_NARRATIVE]->(rn)
                         OPTIONAL MATCH (p)-[:HAS_MULTIMEDIA_CONTENT]->(mm)
                         OPTIONAL MATCH (p)-[:CITES]->(c)
-                        RETURN count(rn) as rn, count(mm) as mm, count(c) as cites
+                        RETURN count(mm) as mm, count(c) as cites
                         """,
                         {"key": key_value},
                     )
@@ -1333,7 +2131,6 @@ class PaperKGExtractor:
                         "found": True,
                         "key_type": key_type,
                         "key_value": key_value,
-                        "has_research_narrative": bool(row.get("rn")),
                         "has_multimedia_content": bool(row.get("mm")),
                         "cites": int(row.get("cites") or 0),
                     }
@@ -1350,7 +2147,7 @@ class PaperKGExtractor:
 
                 try:
                     integrity = _neo4j_integrity_check(logic_chain.get("paper_metadata", {}))
-                    if integrity.get("found") and (not integrity.get("has_research_narrative") or not integrity.get("has_multimedia_content")):
+                    if integrity.get("found") and (not integrity.get("has_multimedia_content")):
                         logger.warning(
                             "Neo4j integrity check failed for %s: %s",
                             file_path,
@@ -1364,6 +2161,7 @@ class PaperKGExtractor:
                             "success": import_ok,
                             "integrity": integrity,
                         },
+                        "coverage": coverage_report,
                     }
                     report_path = out_path.with_name(f"{out_path.stem}_kg_report.json")
                     report_path.write_text(

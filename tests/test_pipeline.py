@@ -38,21 +38,11 @@ class PipelineTest(unittest.TestCase):
         extractor = PaperKGExtractor(config_path=self.config_path, schema_path=self.schema_path)
 
         # Patch LLM calls
-        async def fake_call_agent(agent_name, base_prompt, text):
+        async def fake_call_agent(agent_name, base_prompt, text, strict_json=False):
             if agent_name == 'metadata':
                 return self.sample_output['paper_metadata']
-            if agent_name == 'background':
-                return {
-                    "background": self.sample_output['research_narrative']['background'],
-                    "problem_formulation": self.sample_output['research_narrative']['problem_formulation']
-                }
-            if agent_name == 'methodology':
-                return {"methodology": self.sample_output['research_narrative']['methodology']}
-            if agent_name == 'results':
-                return {
-                    "results_and_findings": self.sample_output['research_narrative']['results_and_findings'],
-                    "discussion_and_conclusion": self.sample_output['research_narrative']['discussion_and_conclusion']
-                }
+            if agent_name == 'research_narrative':
+                return self.sample_output['research_narrative']
             if agent_name == 'multimedia_content':
                 return self.sample_output['multimedia_content']
             return {}
@@ -62,8 +52,14 @@ class PipelineTest(unittest.TestCase):
 
         output_dir = self.sample_file.parent / "output"
         output_path = output_dir / f"{self.sample_file.stem}_logic_chain.json"
+        sidecar_path = output_dir / f"{self.sample_file.stem}_logic_chain_evidence_segments.json"
+        coverage_path = output_dir / f"{self.sample_file.stem}_logic_chain_coverage.json"
         if output_path.exists():
             output_path.unlink()
+        if sidecar_path.exists():
+            sidecar_path.unlink()
+        if coverage_path.exists():
+            coverage_path.unlink()
 
         try:
             result = extractor.extract_file_sync(str(self.sample_file))
@@ -78,6 +74,10 @@ class PipelineTest(unittest.TestCase):
         finally:
             if output_path.exists():
                 output_path.unlink()
+            if sidecar_path.exists():
+                sidecar_path.unlink()
+            if coverage_path.exists():
+                coverage_path.unlink()
 
     def test_mapper_covers_all_fields(self):
         mapper = GraphMapper(conn=None)

@@ -23,6 +23,8 @@ class PromptBuilder:
         self.schema_loader = schema_loader
 
     def get_schema(self, agent_name: str) -> Dict:
+        if agent_name.endswith("_selector"):
+            return {}
         path = AGENT_SCHEMA_PATHS.get(agent_name, ['$root'])
         subschema = self.schema_loader.get_subschema(['$root'] + path)
         if not subschema:

@@ -94,10 +94,10 @@ async def _process_file(
 
     async with semaphore:
         try:
-            out_path = None
-            if output_dir:
-                output_dir.mkdir(exist_ok=True)
-                out_path = output_dir / f"{path.stem}_logic_chain.json"
+            # Always write outputs to the input file's folder/output
+            out_dir = path.parent / "output"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"{path.stem}_logic_chain.json"
             await extractor.extract_file(str(path), str(out_path) if out_path else None)
             status = "OK"
         except Exception as exc:

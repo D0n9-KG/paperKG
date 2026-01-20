@@ -31,99 +31,87 @@
     "abstract": "This paper studies neural widgets."
   },
   "research_narrative": {
-    "background": {
-      "state_of_the_art_summary": {
+    "background": [
+      {
+        "node_id": "B1",
         "value": "Neural widgets have been explored with limited scalability.",
-        "source_excerpt": {
-          "text": "Neural widgets ...",
-          "segment_map": []
-        }
-      },
-      "foundational_works": []
-    },
-    "problem_formulation": {
-      "research_gap": {
+        "evidence_segment_ids": [
+          "S0001"
+        ],
+        "citations": []
+      }
+    ],
+    "research_gaps": [
+      {
+        "node_id": "G1",
         "value": "Existing methods fail to generalize across domains.",
-        "source_excerpt": ""
-      },
-      "research_questions": [],
-      "hypothesis": {
-        "statement": {
-          "value": null,
-          "source_excerpt": ""
-        },
-        "key_assumptions": []
-      },
-      "research_objectives": {
-        "value": "This study aims to improve widget generalization and robustness.",
-        "source_excerpt": {
-          "segment_map": [
-            {
-              "value_segment": "This study aims to improve widget generalization and robustness.",
-              "excerpt": "We aim to improve ..."
-            }
-          ]
-        }
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
       }
-    },
-    "methodology": {
-      "approach_category": {
-        "value": "Data Analysis",
-        "source_excerpt": ""
-      },
-      "method_description": {
+    ],
+    "research_questions": [
+      {
+        "node_id": "Q1",
+        "value": "Can neural widgets be made robust across domains?",
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
+      }
+    ],
+    "hypotheses": [],
+    "methods": {
+      "main": {
+        "node_id": "M1",
         "value": "We train a neural widget model and evaluate cross-domain transfer.",
-        "source_excerpt": ""
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
       },
-      "data_and_materials": {
-        "value": null,
-        "source_excerpt": ""
-      },
-      "evaluation_metrics": [],
-      "method_assumptions_and_limitations": {
-        "assumptions": {
-          "value": null,
-          "source_excerpt": {
-            "segment_map": []
-          }
-        },
-        "limitations": {
-          "value": null,
-          "source_excerpt": {
-            "segment_map": []
-          }
-        }
-      }
+      "supports": []
     },
-    "results_and_findings": {
-      "key_findings": {
+    "results": {
+      "main": {
+        "node_id": "R1",
         "value": "Our model improves accuracy by 5% across domains.",
-        "source_excerpt": {
-          "segment_map": [
-            {
-              "value_segment": "Our model improves accuracy by 5% across domains.",
-              "excerpt": "Results show ..."
-            }
-          ]
-        },
-        "supporting_evidence": [
-          {
-            "value": "p < 0.05",
-            "source_excerpt": "p < 0.05"
-          }
-        ]
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
       },
-      "summary_of_results": {
-        "value": "Overall performance improved across datasets.",
-        "source_excerpt": ""
-      }
+      "supports": []
     },
-    "discussion_and_conclusion": {
-      "final_conclusion": {
+    "conclusions": {
+      "main": {
+        "node_id": "C1",
         "value": "Neural widgets can be generalized with our approach.",
-        "source_excerpt": ""
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
+      },
+      "supports": []
+    },
+    "logic_chains": [
+      {
+        "chain_id": "C1",
+        "question_ids": [
+          "Q1"
+        ],
+        "hypothesis_ids": [],
+        "steps": [
+          "B1",
+          "G1",
+          "Q1",
+          "M1",
+          "R1",
+          "C1"
+        ]
       }
-    }
+    ]
   },
   "multimedia_content": {
     "images": {},
