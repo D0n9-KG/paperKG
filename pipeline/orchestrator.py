@@ -8,7 +8,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.config import Config
 from core.schema import SchemaLoader
@@ -19,16 +19,12 @@ from core.keywords import extract_keywords
 from core.segmenter import build_evidence_segments
 from llm.prompts import (
     METADATA_PROMPT_BASE,
-    BACKGROUND_PROMPT_BASE,
-    METHODOLOGY_PROMPT_BASE,
-    RESULTS_PROMPT_BASE,
     MULTIMEDIA_CONTENT_PROMPT_BASE,
     JSON_SCHEMA_REPAIR_PROMPT,
     QUALITY_RATER_PROMPT,
     CONTENT_REWRITE_PROMPT,
     KEYWORDS_PROMPT,
     CITATION_PURPOSE_PROMPT,
-    FULL_EXTRACT_PROMPT_BASE,
     RESEARCH_NARRATIVE_PROMPT_BASE,
     RESEARCH_NARRATIVE_EVIDENCE_PROMPT,
     RESEARCH_NARRATIVE_SYNTH_PROMPT,
@@ -63,8 +59,6 @@ class PaperKGExtractor:
         self.citation_purpose_cfg = self.config.get('citation_purpose', {})
         self.metadata_cfg = self.config.get('metadata', {})
         self.multimedia_cfg = self.config.get('multimedia', {})
-        self.extraction_mode = self.workflow.get('extraction_mode', 'multi')
-        self.enable_targeted_fallback = self.workflow.get('enable_targeted_fallback', True)
         self.iterative_cfg = self.workflow.get('iterative_refine', {})
         self._neo4j_cleared = False
 
@@ -215,70 +209,7 @@ class PaperKGExtractor:
         return text[:limit]
 
     @staticmethod
-    def _split_paragraphs(text: str) -> List[str]:
-        parts = re.split(r"\n\\s*\n", text)
-        return [p.strip() for p in parts if p.strip()]
-
-    def _build_section_contexts(self, text: str) -> Dict[str, str]:
-        paragraphs = self._split_paragraphs(text)
-        if not paragraphs:
-            return {
-                "background": "",
-                "problem_formulation": "",
-                "methodology": "",
-                "results_and_findings": "",
-                "discussion_and_conclusion": "",
-            }
-
-        section_keywords = {
-            "background": ["introduction", "background", "related work", "literature", "previous work", "引言", "背景", "相关工作", "文献综述"],
-            "problem_formulation": ["problem", "objective", "aim", "goal", "question", "研究问题", "研究目标", "研究空白", "目的"],
-            "methodology": ["method", "methods", "methodology", "experiment", "data", "materials", "simulation", "方法", "实验", "数据", "材料", "数值", "模拟"],
-            "results_and_findings": ["results", "findings", "analysis", "observed", "结果", "发现", "分析", "实验结果"],
-            "discussion_and_conclusion": ["discussion", "conclusion", "limitations", "future work", "讨论", "结论", "局限", "未来工作"],
-        }
-
-        def match_paragraph(paragraph: str, keywords: List[str]) -> bool:
-            lower = paragraph.lower()
-            for kw in keywords:
-                if kw.lower() in lower:
-                    return True
-            return False
-
-        contexts: Dict[str, List[str]] = {k: [] for k in section_keywords}
-        for para in paragraphs:
-            matched = False
-            for section, keywords in section_keywords.items():
-                if match_paragraph(para, keywords):
-                    contexts[section].append(para)
-                    matched = True
-            if not matched:
-                continue
-
-        # fallback: if a section is empty, use early/middle/late paragraphs as a weak proxy
-        if not contexts["background"]:
-            contexts["background"] = paragraphs[:max(3, len(paragraphs)//10)]
-        if not contexts["problem_formulation"]:
-            contexts["problem_formulation"] = paragraphs[:max(3, len(paragraphs)//8)]
-        if not contexts["methodology"]:
-            mid_start = max(0, len(paragraphs)//3)
-            contexts["methodology"] = paragraphs[mid_start: mid_start + max(3, len(paragraphs)//8)]
-        if not contexts["results_and_findings"]:
-            mid_start = max(0, len(paragraphs)//2)
-            contexts["results_and_findings"] = paragraphs[mid_start: mid_start + max(3, len(paragraphs)//8)]
-        if not contexts["discussion_and_conclusion"]:
-            contexts["discussion_and_conclusion"] = paragraphs[-max(3, len(paragraphs)//8):]
-
-        max_chars = int(self.context.get('evidence_max_chars', 20000))
-        joined: Dict[str, str] = {}
-        for k, paras in contexts.items():
-            text_block = "\n\n".join(paras)
-            if len(text_block) > max_chars:
-                text_block = text_block[:max_chars]
-            joined[k] = text_block
-        return joined
-
-    def _build_evidence_segments(self, text: str) -> List[Dict[str, Any]]:
+    def _build_evidence_segments(text: str) -> List[Dict[str, Any]]:
         return build_evidence_segments(text)
 
     @staticmethod
@@ -1280,29 +1211,6 @@ class PaperKGExtractor:
             meta["funding"] = [x for x in funding if isinstance(x, dict)]
 
     @staticmethod
-    def _normalize_supporting_evidence(logic_chain: Dict[str, Any]) -> None:
-        rn = logic_chain.get("research_narrative")
-        if not isinstance(rn, dict):
-            return
-        key_findings = rn.get("results_and_findings", {}).get("key_findings")
-        if not isinstance(key_findings, dict):
-            return
-        evidence = key_findings.get("supporting_evidence")
-        if not isinstance(evidence, list):
-            return
-        normalized = []
-        for item in evidence:
-            if isinstance(item, dict):
-                value = item.get("value")
-                if isinstance(value, str) and value.strip():
-                    normalized.append({"value": value, "source_excerpt": item.get("source_excerpt", "")})
-            elif isinstance(item, (str, int, float)):
-                text = str(item).strip()
-                if text:
-                    normalized.append({"value": text, "source_excerpt": ""})
-        key_findings["supporting_evidence"] = normalized
-
-    @staticmethod
     def _iter_logic_items(narrative: Dict[str, Any]):
         if not isinstance(narrative, dict):
             return
@@ -1471,25 +1379,90 @@ class PaperKGExtractor:
         narrative["logic_chains"] = self._build_default_chains(narrative)
 
     def _build_default_chains(self, narrative: Dict[str, Any]) -> List[Dict[str, Any]]:
-        def _first_id(items: List[Dict[str, Any]]) -> Optional[str]:
-            if items:
-                node_id = items[0].get("node_id")
-                if isinstance(node_id, str):
-                    return node_id
-            return None
+        def _min_segment_index(item: Dict[str, Any]) -> Optional[int]:
+            evid = item.get("evidence_segment_ids")
+            if not isinstance(evid, list):
+                return None
+            indices = []
+            for sid in evid:
+                if not isinstance(sid, str):
+                    continue
+                if sid.startswith("S") and sid[1:].isdigit():
+                    indices.append(int(sid[1:]))
+            return min(indices) if indices else None
+
+        def _citation_set(item: Dict[str, Any]) -> set:
+            cites = item.get("citations")
+            if not isinstance(cites, list):
+                return set()
+            ids = set()
+            for cite in cites:
+                if not isinstance(cite, dict):
+                    continue
+                cid = cite.get("citation_id")
+                if cid is None:
+                    continue
+                cid = str(cid).strip()
+                if cid:
+                    ids.add(cid)
+            return ids
+
+        def _char_ngrams(text: str, n: int = 2) -> set:
+            if not isinstance(text, str):
+                return set()
+            cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", "", text.lower())
+            if len(cleaned) < n:
+                return set()
+            return {cleaned[i:i + n] for i in range(len(cleaned) - n + 1)}
+
+        def _jaccard(a: set, b: set) -> float:
+            if not a or not b:
+                return 0.0
+            inter = a.intersection(b)
+            union = a.union(b)
+            return len(inter) / len(union) if union else 0.0
+
+        def _related_score(candidate: Dict[str, Any], anchor: Dict[str, Any], cfg: Dict[str, Any]) -> float:
+            c_text = candidate.get("value", "")
+            a_text = anchor.get("value", "")
+            jaccard = _jaccard(_char_ngrams(c_text), _char_ngrams(a_text))
+            cite_overlap = 0
+            if cfg.get("use_citations", True):
+                c_cites = _citation_set(candidate)
+                a_cites = _citation_set(anchor)
+                cite_overlap = len(c_cites.intersection(a_cites))
+            distance_bonus = 0.0
+            if cfg.get("use_distance", True):
+                c_idx = _min_segment_index(candidate)
+                a_idx = _min_segment_index(anchor)
+                if c_idx is not None and a_idx is not None:
+                    dist = abs(c_idx - a_idx)
+                    max_dist = int(cfg.get("max_distance", 8))
+                    if max_dist > 0 and dist <= max_dist:
+                        distance_bonus = (max_dist - dist + 1) / max_dist
+            return jaccard * 10.0 + cite_overlap * 2.0 + distance_bonus
+
+        def _filter_related(items: List[Dict[str, Any]], anchor: Dict[str, Any], cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+            min_score = float(cfg.get("min_score", 1.5))
+            scored: List[Tuple[float, Dict[str, Any]]] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                scored.append((_related_score(item, anchor, cfg), item))
+            related = [item for score, item in scored if score >= min_score]
+            if related:
+                return related
+            fallback_k = int(cfg.get("fallback_top_k", 0))
+            if fallback_k > 0 and scored:
+                scored.sort(key=lambda x: x[0], reverse=True)
+                return [item for _score, item in scored[:fallback_k]]
+            return []
+
         narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
-        chain_cfg = narrative_cfg.get("chain_context_max", {}) if isinstance(narrative_cfg.get("chain_context_max", {}), dict) else {}
-        max_bg = int(chain_cfg.get("background", 1))
-        max_gap = int(chain_cfg.get("research_gaps", 1))
+        rel_cfg = narrative_cfg.get("chain_relevance", {}) if isinstance(narrative_cfg.get("chain_relevance", {}), dict) else {}
 
         background_items = narrative.get("background", []) if isinstance(narrative.get("background"), list) else []
         gap_items = narrative.get("research_gaps", []) if isinstance(narrative.get("research_gaps"), list) else []
-        background_ids = [item.get("node_id") for item in background_items if isinstance(item, dict) and isinstance(item.get("node_id"), str)]
-        gap_ids = [item.get("node_id") for item in gap_items if isinstance(item, dict) and isinstance(item.get("node_id"), str)]
-        if max_bg > 0:
-            background_ids = background_ids[:max_bg]
-        if max_gap > 0:
-            gap_ids = gap_ids[:max_gap]
 
         method_main = narrative.get("methods", {}).get("main") if isinstance(narrative.get("methods"), dict) else None
         result_main = narrative.get("results", {}).get("main") if isinstance(narrative.get("results"), dict) else None
@@ -1502,10 +1475,23 @@ class PaperKGExtractor:
         questions = narrative.get("research_questions", []) if isinstance(narrative.get("research_questions"), list) else []
         hypotheses = narrative.get("hypotheses", []) if isinstance(narrative.get("hypotheses"), list) else []
 
-        def _build_steps(anchor_id: Optional[str]) -> List[str]:
+        def _build_steps(anchor_id: Optional[str], anchor_item: Optional[Dict[str, Any]]) -> List[str]:
             steps: List[str] = []
-            steps.extend([sid for sid in background_ids if sid])
-            steps.extend([sid for sid in gap_ids if sid])
+            selected_background = background_items
+            selected_gaps = gap_items
+            if anchor_item:
+                selected_background = _filter_related(background_items, anchor_item, rel_cfg)
+                selected_gaps = _filter_related(gap_items, anchor_item, rel_cfg)
+            selected_background = sorted(
+                [item for item in selected_background if isinstance(item, dict) and isinstance(item.get("node_id"), str)],
+                key=lambda x: (_min_segment_index(x) or 0, x.get("node_id")),
+            )
+            selected_gaps = sorted(
+                [item for item in selected_gaps if isinstance(item, dict) and isinstance(item.get("node_id"), str)],
+                key=lambda x: (_min_segment_index(x) or 0, x.get("node_id")),
+            )
+            steps.extend([item.get("node_id") for item in selected_background if isinstance(item.get("node_id"), str)])
+            steps.extend([item.get("node_id") for item in selected_gaps if isinstance(item.get("node_id"), str)])
             if isinstance(anchor_id, str):
                 steps.append(anchor_id)
             if isinstance(method_id, str):
@@ -1514,7 +1500,6 @@ class PaperKGExtractor:
                 steps.append(result_id)
             if isinstance(conclusion_id, str):
                 steps.append(conclusion_id)
-            # Deduplicate while preserving order
             seen = set()
             ordered = []
             for sid in steps:
@@ -1525,7 +1510,7 @@ class PaperKGExtractor:
             return ordered
 
         if not questions and not hypotheses:
-            steps = _build_steps(None)
+            steps = _build_steps(None, None)
             if steps:
                 chains.append({"chain_id": "C1", "question_ids": [], "hypothesis_ids": [], "steps": steps})
             return chains
@@ -1536,7 +1521,7 @@ class PaperKGExtractor:
                 node_id = item.get("node_id") if isinstance(item, dict) else None
                 if not isinstance(node_id, str):
                     continue
-                steps = _build_steps(node_id)
+                steps = _build_steps(node_id, item if isinstance(item, dict) else None)
                 if not steps:
                     continue
                 chains.append(
@@ -1707,25 +1692,10 @@ class PaperKGExtractor:
                     cite[key] = purpose.strip()
         return logic_chain
 
-    def _has_any_keys(obj: Any, keys: set[str]) -> bool:
-        if not isinstance(obj, dict):
-            return False
-        return any(k in obj for k in keys)
-
-    @staticmethod
-    def _has_all_keys(obj: Any, keys: set[str]) -> bool:
-        if not isinstance(obj, dict):
-            return False
-        return all(k in obj for k in keys)
-
     async def extract_file(self, file_path: str, output_path: Optional[str] = None) -> Dict[str, Any]:
         file_text = Path(file_path).read_text(encoding=self.config.get('file_processing', {}).get('text_encoding', 'utf-8'))
         paper_text = self._truncate_text(file_text)
-        logger.info("Extraction mode: %s | text_chars=%s", self.extraction_mode, len(paper_text))
-        mode = self.extraction_mode
-        if mode != "narrative_only":
-            logger.warning("Narrative v2 only supports narrative_only; falling back for this run.")
-            mode = "narrative_only"
+        logger.info("Extraction mode: narrative_only | text_chars=%s", len(paper_text))
         evidence_segments = self._build_evidence_segments(file_text)
         stage_times: Dict[str, float] = {}
         extract_start = time.perf_counter()
@@ -1740,130 +1710,24 @@ class PaperKGExtractor:
 
         logic_chain: Dict[str, Any] = {}
 
-        if mode == 'narrative_only':
-            t = time.perf_counter()
-            metadata = await self._extract_metadata(paper_text)
-            stage_times['metadata'] = time.perf_counter() - t
+        t = time.perf_counter()
+        metadata = await self._extract_metadata(paper_text)
+        stage_times['metadata'] = time.perf_counter() - t
 
-            t = time.perf_counter()
-            narrative = await self._extract_research_narrative(paper_text, evidence_segments)
-            stage_times['research_narrative'] = time.perf_counter() - t
+        t = time.perf_counter()
+        narrative = await self._extract_research_narrative(paper_text, evidence_segments)
+        stage_times['research_narrative'] = time.perf_counter() - t
 
-            t = time.perf_counter()
-            multimedia = await self._extract_multimedia(paper_text)
-            stage_times['multimedia'] = time.perf_counter() - t
+        t = time.perf_counter()
+        multimedia = await self._extract_multimedia(paper_text)
+        stage_times['multimedia'] = time.perf_counter() - t
 
-            logic_chain = {
-                'paper_metadata': metadata,
-                'research_narrative': narrative,
-                'multimedia_content': multimedia,
-            }
-            stage_times['extract'] = time.perf_counter() - extract_start
-
-        elif mode == 'unified':
-            unified = await self._call_agent('full_extractor', FULL_EXTRACT_PROMPT_BASE, paper_text, strict_json=True)
-            logic_chain = unified if isinstance(unified, dict) else {}
-            if not isinstance(logic_chain.get('paper_metadata'), dict):
-                logic_chain['paper_metadata'] = {}
-            if not isinstance(logic_chain.get('research_narrative'), dict):
-                logic_chain['research_narrative'] = {}
-            if not isinstance(logic_chain.get('multimedia_content'), dict):
-                logic_chain['multimedia_content'] = {}
-
-            if self.enable_targeted_fallback:
-                if _empty_dict(logic_chain.get('paper_metadata')):
-                    try:
-                        metadata = await self._call_agent('metadata', METADATA_PROMPT_BASE, paper_text, strict_json=True)
-                        if isinstance(metadata, dict):
-                            logic_chain['paper_metadata'] = self._merge_preserve(logic_chain['paper_metadata'], metadata)
-                    except Exception as exc:
-                        logger.warning(f"Metadata fallback failed: {exc}")
-
-                rn = logic_chain.get('research_narrative', {})
-                if _empty_dict(rn.get('background')) or _empty_dict(rn.get('problem_formulation')):
-                    try:
-                        background = await self._call_agent('background', BACKGROUND_PROMPT_BASE, paper_text, strict_json=True)
-                        if isinstance(background, dict):
-                            rn = self._merge_preserve(rn, background)
-                    except Exception as exc:
-                        logger.warning(f"Background fallback failed: {exc}")
-
-                if _empty_dict(rn.get('methodology')):
-                    try:
-                        methodology = await self._call_agent('methodology', METHODOLOGY_PROMPT_BASE, paper_text, strict_json=True)
-                        if isinstance(methodology, dict):
-                            rn = self._merge_preserve(rn, methodology)
-                    except Exception as exc:
-                        logger.warning(f"Methodology fallback failed: {exc}")
-
-                results_block = rn.get('results_and_findings')
-                discussion_block = rn.get('discussion_and_conclusion') or rn.get('conclusion')
-                if _empty_dict(results_block) or _empty_dict(discussion_block):
-                    try:
-                        results_and_conclusion = await self._call_agent('results', RESULTS_PROMPT_BASE, paper_text, strict_json=True)
-                        if isinstance(results_and_conclusion, dict):
-                            rn = self._merge_preserve(rn, results_and_conclusion)
-                    except Exception as exc:
-                        logger.warning(f"Results fallback failed: {exc}")
-
-                logic_chain['research_narrative'] = rn
-
-                multimedia = logic_chain.get('multimedia_content', {})
-                if not self._has_all_keys(multimedia, {"images", "references", "formulas"}):
-                    try:
-                        multimedia = await self._call_agent('multimedia_content', MULTIMEDIA_CONTENT_PROMPT_BASE, paper_text, strict_json=True)
-                    except Exception as exc:
-                        logger.warning(f"Multimedia fallback failed: {exc}")
-                logic_chain['multimedia_content'] = multimedia
-
-            stage_times['extract'] = time.perf_counter() - extract_start
-        else:
-            tasks = [
-                self._call_agent('metadata', METADATA_PROMPT_BASE, paper_text),
-                self._call_agent('background', BACKGROUND_PROMPT_BASE, paper_text),
-                self._call_agent('methodology', METHODOLOGY_PROMPT_BASE, paper_text),
-                self._call_agent('results', RESULTS_PROMPT_BASE, paper_text),
-                self._call_agent('multimedia_content', MULTIMEDIA_CONTENT_PROMPT_BASE, paper_text),
-            ]
-
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            metadata = results[0] if not isinstance(results[0], Exception) else {}
-            background = results[1] if not isinstance(results[1], Exception) else {}
-            methodology = results[2] if not isinstance(results[2], Exception) else {}
-            results_and_conclusion = results[3] if not isinstance(results[3], Exception) else {}
-            multimedia = results[4] if not isinstance(results[4], Exception) else {}
-
-            if not self._has_any_keys(results_and_conclusion, {"results_and_findings", "discussion_and_conclusion", "conclusion"}):
-                logger.warning("Results extraction missing, retrying with strict JSON")
-                try:
-                    results_and_conclusion = await self._call_agent('results', RESULTS_PROMPT_BASE, paper_text, strict_json=True)
-                except Exception as exc:
-                    logger.warning(f"Results retry failed: {exc}")
-
-            if not self._has_all_keys(multimedia, {"images", "references", "formulas"}):
-                logger.warning("Multimedia extraction missing, retrying with strict JSON")
-                try:
-                    multimedia = await self._call_agent('multimedia_content', MULTIMEDIA_CONTENT_PROMPT_BASE, paper_text, strict_json=True)
-                except Exception as exc:
-                    logger.warning(f"Multimedia retry failed: {exc}")
-
-            discussion_and_conclusion = results_and_conclusion.get('discussion_and_conclusion', {})
-            if not discussion_and_conclusion:
-                discussion_and_conclusion = results_and_conclusion.get('conclusion', {})
-
-            logic_chain = {
-                'paper_metadata': metadata,
-                'research_narrative': {
-                    'background': background.get('background', {}),
-                    'problem_formulation': background.get('problem_formulation', {}),
-                    'methodology': methodology.get('methodology', {}),
-                    'results_and_findings': results_and_conclusion.get('results_and_findings', {}),
-                    'discussion_and_conclusion': discussion_and_conclusion,
-                },
-                'multimedia_content': multimedia
-            }
-            stage_times['extract'] = time.perf_counter() - extract_start
+        logic_chain = {
+            'paper_metadata': metadata,
+            'research_narrative': narrative,
+            'multimedia_content': multimedia,
+        }
+        stage_times['extract'] = time.perf_counter() - extract_start
 
         rn = logic_chain.get('research_narrative', {}) if isinstance(logic_chain.get('research_narrative'), dict) else {}
         if 'conclusion' in rn and not rn.get('discussion_and_conclusion'):
@@ -1879,42 +1743,11 @@ class PaperKGExtractor:
         logic_chain['multimedia_content'] = multimedia
         stage_times['crossref'] = time.perf_counter() - t
 
-        if mode != 'narrative_only':
-            # Crossref enrichment (metadata only)
-            t = time.perf_counter()
-            if self.crossref_cfg.get('enable', True):
-                logic_chain['paper_metadata'] = await self._crossref_enrich(logic_chain['paper_metadata'])
-            stage_times['metadata_enrich'] = time.perf_counter() - t
-
-            if self.keywords_cfg.get('enable', True):
-                t = time.perf_counter()
-                metadata = logic_chain.get('paper_metadata', {})
-                if isinstance(metadata, dict):
-                    keywords = metadata.get('keywords')
-                    if not keywords:
-                        max_keywords = int(self.keywords_cfg.get('max_keywords', 12))
-                        language = self.keywords_cfg.get('language', 'en')
-                        extracted = extract_keywords(paper_text, max_keywords=max_keywords, language=language)
-                        if not extracted and self.keywords_cfg.get('use_llm', True):
-                            try:
-                                extracted = await self._extract_keywords_with_llm(paper_text, max_keywords)
-                            except Exception as exc:
-                                logger.warning(f"Keyword LLM fallback failed: {exc}")
-                                extracted = []
-                        if extracted:
-                            metadata['keywords'] = extracted
-                            source = metadata.get('metadata_source', {})
-                            if isinstance(source, dict):
-                                source['llm_supplemented'] = self.keywords_cfg.get('use_llm', True)
-                                metadata['metadata_source'] = source
-                            logic_chain['paper_metadata'] = metadata
-                stage_times['keywords'] = time.perf_counter() - t
-
         iterative_enabled = bool(self.iterative_cfg.get('enable', False))
         max_rounds = int(self.iterative_cfg.get('max_rounds', 3))
         stop_on_no_change = bool(self.iterative_cfg.get('stop_on_no_change', True))
 
-        if iterative_enabled and mode == 'narrative_only':
+        if iterative_enabled:
             t = time.perf_counter()
             narrative = logic_chain.get('research_narrative', {})
             threshold = int(self.quality_cfg.get('threshold', 75))
@@ -1935,40 +1768,6 @@ class PaperKGExtractor:
                     logger.info("Iterative narrative refine stopped: no changes in round %s", round_idx + 1)
                     break
             logic_chain['research_narrative'] = narrative
-            stage_times['iterative_refine'] = time.perf_counter() - t
-
-        elif iterative_enabled:
-            t = time.perf_counter()
-            last_hash = None
-            threshold = int(self.quality_cfg.get('threshold', 75))
-            for round_idx in range(max_rounds):
-                errors = self.validator.validate(logic_chain)
-                needs_repair = bool(errors) and self.config.get('repair', {}).get('enable_schema_repair', True)
-                needs_quality = self.quality_cfg.get('enable', True)
-                final_score = None
-                if needs_quality:
-                    final_score = await self._compute_quality_score(logic_chain, paper_text)
-                needs_refine = needs_repair or (final_score is not None and final_score < threshold)
-                logger.info(
-                    "Iterative refine round %s/%s: errors=%s score=%s",
-                    round_idx + 1,
-                    max_rounds,
-                    len(errors),
-                    final_score if final_score is not None else "n/a",
-                )
-                if not needs_refine:
-                    break
-
-                before = json.dumps(logic_chain, ensure_ascii=False, sort_keys=True)
-                if needs_repair:
-                    logic_chain = await self._repair_json_with_llm(logic_chain, paper_text)
-                if final_score is not None and final_score < threshold:
-                    logic_chain = await self._refine_with_llm(logic_chain, paper_text)
-                after = json.dumps(logic_chain, ensure_ascii=False, sort_keys=True)
-                if stop_on_no_change and after == before:
-                    logger.info("Iterative refine stopped: no changes in round %s", round_idx + 1)
-                    break
-                last_hash = after
             stage_times['iterative_refine'] = time.perf_counter() - t
         else:
             # Quality scoring + refinement

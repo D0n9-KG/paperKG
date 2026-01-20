@@ -31,35 +31,10 @@
       model: deepseek-chat
       max_tokens: 6000
       temperature: 0.3
-    full_extractor:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 8000
-      temperature: 0.2
     metadata:
       provider: deepseek
       model: deepseek-chat
       max_tokens: 2000
-      temperature: 0.2
-    background:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 4000
-      temperature: 0.3
-    methodology:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 3000
-      temperature: 0.3
-    results:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 5000
-      temperature: 0.3
-    refinement:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 8000
       temperature: 0.2
     json_repair:
       provider: deepseek
@@ -93,16 +68,12 @@
       temperature: 0.2
 
 workflow:
-  enable_refinement: false
-  max_refinement_rounds: 2
   enable_async: true
   api_timeout: 300
   retry_attempts: 3
   retry_delay: 2
   batch_parallel_limit: 3
   api_concurrent_limit: 10
-  extraction_mode: narrative_only
-  enable_targeted_fallback: true
   iterative_refine:
     enable: true
     max_rounds: 3
@@ -110,8 +81,6 @@ workflow:
 
 context:
   max_context_length: 500000
-  refinement_context_length: 500000
-  refinement_result_length: 20000
   evidence_max_chars: 20000
   evidence_max_segments: 200
   citation_context_chars: 2000
@@ -125,9 +94,12 @@ narrative:
   evidence_pool:
     per_section_min: 10
     per_section_max: 80
-  chain_context_max:
-    background: 1
-    research_gaps: 1
+  chain_relevance:
+    min_score: 1.5
+    use_citations: true
+    use_distance: true
+    max_distance: 8
+    fallback_top_k: 0
 
 logging:
   output_dir: logs
@@ -142,7 +114,6 @@ file_processing:
   text_encoding: utf-8
 
 output:
-  default_output_dir: output
   indent: 2
   ensure_ascii: false
 
@@ -154,15 +125,8 @@ source_files:
     - .txt
 
 repair:
-  mode: strict
-  max_repair_iterations: 2
-  enable_json_repair_library: true
   enable_schema_repair: true
   max_repair_chars: 40000
-  on_failure: return_empty
-  enable_rule_based_repair: true
-  enable_cache: false
-  log_repair_details: true
 
 quality:
   enable: true

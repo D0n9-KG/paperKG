@@ -15,21 +15,6 @@ llm:
       model: deepseek-chat
       max_tokens: 2000
       temperature: 0.2
-    background:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 4000
-      temperature: 0.3
-    methodology:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 3000
-      temperature: 0.3
-    results:
-      provider: deepseek
-      model: deepseek-chat
-      max_tokens: 4000
-      temperature: 0.3
     json_repair:
       provider: deepseek
       model: deepseek-chat
@@ -42,13 +27,10 @@ llm:
       temperature: 0.1
 
 workflow:
-  enable_refinement: false
   enable_async: true
   retry_attempts: 1
   retry_delay: 0
   api_timeout: 300
-  extraction_mode: narrative_only
-  enable_targeted_fallback: false
   iterative_refine:
     enable: false
 
@@ -56,7 +38,6 @@ context:
   max_context_length: 500000
 
 output:
-  default_output_dir: output
   indent: 2
   ensure_ascii: false
 
