@@ -102,7 +102,8 @@ RESEARCH_NARRATIVE_PROMPT_BASE = """你是资深学术分析专家。只抽取 r
 2) 每条 value 必须是完整、可独立阅读的句子。
 3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据片段库中已有的ID。
 4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
-5) background / research_gaps / research_questions / hypotheses 为“多条陈述列表”。
+5) background / research_gaps / research_questions / research_objectives / hypotheses 为“多条陈述列表”。
+   - research_objectives 至少给出1条；若原文未明确给出，基于 research_questions 改写为研究目的。
 6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构：
    - main：1条总括性主结论（可为 null）
    - supports：若干条支撑子结论（可为空数组）
@@ -110,9 +111,10 @@ RESEARCH_NARRATIVE_PROMPT_BASE = """你是资深学术分析专家。只抽取 r
    - citations 列表中的 citation_id 应来自证据片段中的数字引用（如 [3]）。
    - citation_text 可置为 null（后续系统会补全）。
    - purpose 若无法判断，可暂时输出空字符串 ""。
-8) logic_chains 必须是“多条链”，按研究问题/假设拆分：
-   - question_ids/hypothesis_ids 对应 research_questions/hypotheses 中的 node_id
-   - steps 为该链条的 node_id 顺序列表（背景→空白→问题/假设→方法main→结果main→结论main）
+8) logic_chains 必须是“多条链”，按研究目的拆分：
+   - objective_ids 对应 research_objectives 中的 node_id
+   - 如果确实没有研究目的，可使用 research_questions 作为 fallback（将 question_id 作为 objective_id）
+   - steps 为该链条的 node_id 顺序列表（背景→空白→研究目的→方法main→结果main→结论main）
 9) 仅输出JSON。
 
 {OUTPUT_FORMAT_SECTION}"""
@@ -127,7 +129,7 @@ RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据选择助手。请仅�
 【要求】
 1) 只能输出证据库中已有的ID，不得编造。
 2) 尽量覆盖全文与主要章节（引言/方法/结果/讨论/结论），每个章节至少选1条可用证据。
-3) 背景/空白/问题/假设应尽量覆盖论文主线，必要时可多选。
+3) 背景/空白/问题/研究目的/假设应尽量覆盖论文主线，必要时可多选。
 4) 方法/结果/结论分为 main 与 supports：main 代表总括性陈述的证据。
 5) 如果确实没有证据，请输出空数组。
 
@@ -136,6 +138,7 @@ RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据选择助手。请仅�
   "background_ids": [],
   "research_gap_ids": [],
   "research_question_ids": [],
+  "objective_ids": [],
   "hypothesis_ids": [],
   "method_main_ids": [],
   "method_support_ids": [],
@@ -161,10 +164,13 @@ RESEARCH_NARRATIVE_SYNTH_PROMPT = """你是资深学术分析专家。只抽取 
 2) 每条 value 必须是完整、可独立阅读的句子。
 3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据库中已有的ID。
 4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
-5) background / research_gaps / research_questions / hypotheses 为多条陈述列表。
+5) background / research_gaps / research_questions / research_objectives / hypotheses 为多条陈述列表。
+   - research_objectives 至少给出1条；若原文未明确给出，基于 research_questions 改写为研究目的。
 6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构。
 7) citations 字段用于记录引用及其作用说明；若无法判断可先置空字符串。
-8) logic_chains 必须是“多条链”，按研究问题/假设拆分，steps 只包含主链 node_id（背景→空白→问题/假设→方法main→结果main→结论main），不要包含 supports。
+8) logic_chains 必须是“多条链”，按研究目的拆分，steps 只包含主链 node_id（背景→空白→研究目的→方法main→结果main→结论main），不要包含 supports。
+   - objective_ids 对应 research_objectives 的 node_id
+   - 若无研究目的，可用 research_questions 作为 fallback（将 question_id 作为 objective_id）
 9) 仅输出JSON。
 
 {OUTPUT_FORMAT_SECTION}"""

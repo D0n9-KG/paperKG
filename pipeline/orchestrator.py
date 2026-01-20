@@ -209,6 +209,22 @@ class PaperKGExtractor:
         return text[:limit]
 
     @staticmethod
+    def _prune_metadata_unrelated(meta: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(meta, dict):
+            return meta
+        meta = dict(meta)
+        # Remove Crossref/process-only fields
+        meta.pop("metadata_source", None)
+        meta.pop("citation_metrics", None)
+        dates = meta.get("dates")
+        if isinstance(dates, dict):
+            dates = dict(dates)
+            for key in ("created", "deposited", "indexed"):
+                dates.pop(key, None)
+            meta["dates"] = dates
+        return meta
+
+    @staticmethod
     def _build_evidence_segments(text: str) -> List[Dict[str, Any]]:
         return build_evidence_segments(text)
 
@@ -334,6 +350,157 @@ class PaperKGExtractor:
         scored.sort(key=lambda x: (-x[0], x[1].get("id", "")))
         return [seg for _score, seg in scored]
 
+    @staticmethod
+    def _is_reference_like(text: str) -> bool:
+        if not isinstance(text, str):
+            return True
+        cleaned = " ".join(text.strip().split()).lower()
+        if not cleaned:
+            return True
+        if "doi" in cleaned or "http://" in cleaned or "https://" in cleaned:
+            return True
+        if cleaned.startswith("[") and "]" in cleaned[:10]:
+            # Likely a numbered reference entry
+            return True
+        # Heuristic: bibliography-style with year and many commas
+        if re.search(r"\b(19|20)\d{2}\b", cleaned) and cleaned.count(",") >= 3:
+            return True
+        return False
+
+    @staticmethod
+    def _score_keywords(text: str, keywords: List[str]) -> int:
+        if not isinstance(text, str) or not keywords:
+            return 0
+        lowered = text.lower()
+        score = 0
+        for kw in keywords:
+            if kw in lowered:
+                score += 1
+        return score
+
+    def _classify_problem_formulation(self, text: str) -> str:
+        # Choose the most plausible target list for problem-formulation segments
+        keyword_map = {
+            "research_objectives": ["objective", "aim", "goal", "purpose", "aims", "\u76ee\u6807", "\u76ee\u7684", "\u65e8\u5728", "\u672c\u7814\u7a76\u65e8\u5728"],
+            "research_questions": ["question", "whether", "how", "why", "\u95ee\u9898", "\u662f\u5426"],
+            "research_gaps": ["gap", "lack", "limited", "unknown", "challenge", "\u7a7a\u767d", "\u5c40\u9650", "\u4e0d\u8db3"],
+            "hypotheses": ["hypothesis", "we hypothesize", "assume", "\u5047\u8bbe", "\u5047\u8bba"],
+        }
+        scores = {k: self._score_keywords(text, v) for k, v in keyword_map.items()}
+        best = max(scores.items(), key=lambda x: x[1])[0]
+        return best if scores.get(best, 0) > 0 else "background"
+
+    def _expand_narrative_coverage(
+        self,
+        narrative: Dict[str, Any],
+        evidence_segments: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
+        fill_cfg = narrative_cfg.get("coverage_fill", {}) if isinstance(narrative_cfg.get("coverage_fill", {}), dict) else {}
+        if not bool(fill_cfg.get("enable", True)):
+            return narrative
+
+        per_section_add = int(fill_cfg.get("per_section_add", 12))
+        max_total_add = int(fill_cfg.get("max_total_add", 80))
+        min_segment_chars = int(fill_cfg.get("min_segment_chars", 40))
+
+        if per_section_add <= 0 or max_total_add <= 0:
+            return narrative
+
+        narrative = self._ensure_research_narrative_sections(narrative)
+        used_ids = set(self._collect_evidence_ids_from_narrative(narrative))
+
+        # Build full coverage pool by section from raw segments
+        pool_by_section: Dict[str, List[Dict[str, Any]]] = {
+            "background": [],
+            "problem_formulation": [],
+            "methodology": [],
+            "results_and_findings": [],
+            "discussion_and_conclusion": [],
+        }
+        for seg in evidence_segments:
+            if not isinstance(seg, dict):
+                continue
+            seg_id = seg.get("id")
+            if not isinstance(seg_id, str):
+                continue
+            if seg_id in used_ids:
+                continue
+            section = seg.get("section")
+            if section == "references":
+                continue
+            if section not in pool_by_section:
+                section = "background"
+            pool_by_section[section].append(seg)
+
+        keyword_map = {
+            "background": ["background", "overview", "introduction", "\u80cc\u666f", "\u5f15\u8a00"],
+            "problem_formulation": ["problem", "objective", "aim", "goal", "question", "\u7814\u7a76\u95ee\u9898", "\u7814\u7a76\u76ee\u6807", "\u7814\u7a76\u7a7a\u767d", "\u76ee\u7684"],
+            "methodology": ["method", "methods", "methodology", "materials", "experiment", "simulation", "model", "approach", "\u65b9\u6cd5", "\u6750\u6599", "\u5b9e\u9a8c", "\u4eff\u771f", "\u6a21\u578b"],
+            "results_and_findings": ["result", "results", "finding", "analysis", "observations", "\u7ed3\u679c", "\u53d1\u73b0", "\u5206\u6790"],
+            "discussion_and_conclusion": ["discussion", "conclusion", "limitations", "future work", "summary", "\u8ba8\u8bba", "\u7ed3\u8bba", "\u5c40\u9650", "\u672a\u6765\u5de5\u4f5c", "\u603b\u7ed3"],
+        }
+
+        def _append_item(target: str, seg: Dict[str, Any]) -> bool:
+            seg_id = seg.get("id")
+            if not isinstance(seg_id, str) or seg_id in used_ids:
+                return False
+            text = self._clean_segment_text(seg.get("text", ""))
+            if not text or len(text) < min_segment_chars:
+                return False
+            if self._is_reference_like(text):
+                return False
+            item = {
+                "value": text,
+                "evidence_segment_ids": [seg_id],
+                "citations": self._build_citation_entries(seg.get("citations", [])),
+            }
+            if target in ("background", "research_gaps", "research_questions", "research_objectives", "hypotheses"):
+                narrative[target].append(item)
+            elif target == "methods_support":
+                narrative["methods"]["supports"].append(item)
+            elif target == "results_support":
+                narrative["results"]["supports"].append(item)
+            elif target == "conclusions_support":
+                narrative["conclusions"]["supports"].append(item)
+            else:
+                return False
+            used_ids.add(seg_id)
+            return True
+
+        total_added = 0
+        for section, items in pool_by_section.items():
+            if total_added >= max_total_add:
+                break
+            ranked = self._rank_segments_by_keywords(
+                [{"id": seg.get("id"), "text": self._clean_segment_text(seg.get("text", "")), "citations": seg.get("citations", []), "section": section} for seg in items],
+                keyword_map.get(section, []),
+            )
+            # Map ranked back to original segments by id
+            seg_by_id = {seg.get("id"): seg for seg in items if isinstance(seg, dict) and seg.get("id")}
+            added = 0
+            for cand in ranked:
+                if total_added >= max_total_add or added >= per_section_add:
+                    break
+                seg = seg_by_id.get(cand.get("id"))
+                if not seg:
+                    continue
+                if section == "background":
+                    target = "background"
+                elif section == "problem_formulation":
+                    target = self._classify_problem_formulation(cand.get("text", ""))
+                elif section == "methodology":
+                    target = "methods_support"
+                elif section == "results_and_findings":
+                    target = "results_support"
+                else:
+                    target = "conclusions_support"
+                if _append_item(target, seg):
+                    total_added += 1
+                    added += 1
+
+        return narrative
+
     def _ensure_minimum_evidence(
         self,
         selections: Dict[str, List[str]],
@@ -345,6 +512,7 @@ class PaperKGExtractor:
             "background": 3,
             "research_gaps": 1,
             "research_questions": 1,
+            "research_objectives": 1,
             "hypotheses": 0,
         }
         # Keyword heuristics
@@ -352,6 +520,7 @@ class PaperKGExtractor:
             "background": ["background", "overview", "introduction", "\u80cc\u666f", "\u5f15\u8a00"],
             "research_gaps": ["gap", "lack", "limited", "unknown", "challenge", "\u7a7a\u767d", "\u5c40\u9650"],
             "research_questions": ["question", "aim", "objective", "goal", "whether", "\u95ee\u9898", "\u76ee\u6807", "\u76ee\u7684"],
+            "research_objectives": ["objective", "aim", "goal", "purpose", "\u76ee\u6807", "\u76ee\u7684", "\u65e8\u5728", "\u76ee\u7684\u662f"],
             "hypotheses": ["hypothesis", "we hypothesize", "assume", "\u5047\u8bbe", "\u5047\u8bba"],
         }
 
@@ -359,6 +528,7 @@ class PaperKGExtractor:
             "background": "background_ids",
             "research_gaps": "research_gap_ids",
             "research_questions": "research_question_ids",
+            "research_objectives": "objective_ids",
             "hypotheses": "hypothesis_ids",
         }
 
@@ -377,6 +547,8 @@ class PaperKGExtractor:
                 pool_section = "problem_formulation"
             elif key == "research_questions":
                 pool_section = "problem_formulation"
+            elif key == "research_objectives":
+                pool_section = "problem_formulation"
             elif key == "hypotheses":
                 pool_section = "problem_formulation"
             segments = evidence_pool.get(pool_section, [])
@@ -391,6 +563,23 @@ class PaperKGExtractor:
                 if len(current_ids) >= target_min:
                     break
             selections[sel_key] = current_ids
+        # If objectives are still missing, borrow from research questions (fallback)
+        objective_min = int(min_cfg.get("research_objectives", default_min.get("research_objectives", 0)))
+        objective_ids = selections.get("objective_ids", [])
+        question_ids = selections.get("research_question_ids", [])
+        if not isinstance(objective_ids, list):
+            objective_ids = []
+        if not isinstance(question_ids, list):
+            question_ids = []
+        if len(objective_ids) < objective_min and question_ids:
+            for qid in question_ids:
+                if not isinstance(qid, str):
+                    continue
+                if qid not in objective_ids:
+                    objective_ids.append(qid)
+                if len(objective_ids) >= objective_min:
+                    break
+            selections["objective_ids"] = objective_ids
         return selections
 
     def _ensure_main_support_ids(
@@ -483,6 +672,7 @@ class PaperKGExtractor:
             "background": "background_ids",
             "research_gaps": "research_gap_ids",
             "research_questions": "research_question_ids",
+            "research_objectives": "objective_ids",
             "hypotheses": "hypothesis_ids",
         }
         for section, sel_key in list_mapping.items():
@@ -562,6 +752,7 @@ class PaperKGExtractor:
             "background_ids",
             "research_gap_ids",
             "research_question_ids",
+            "objective_ids",
             "hypothesis_ids",
             "method_main_ids",
             "method_support_ids",
@@ -752,13 +943,15 @@ class PaperKGExtractor:
                     logger.warning(f"Research narrative retry failed: {exc}")
             narrative = self._ensure_research_narrative_sections(narrative)
             narrative = self._backfill_narrative_with_selected_ids(narrative, selected_ids, evidence_pool)
+            # Expand coverage with additional evidence-backed items
+            narrative = self._expand_narrative_coverage(narrative, evidence_segments)
             return self._ensure_research_narrative_sections(narrative)
         return {}
 
     def _needs_narrative_retry(self, narrative: Dict[str, Any]) -> bool:
         narrative_cfg = self.config.get("narrative", {})
         min_cfg = narrative_cfg.get("min_counts", {}) if isinstance(narrative_cfg, dict) else {}
-        default_min = {"background": 1, "research_gaps": 1, "research_questions": 0, "hypotheses": 0}
+        default_min = {"background": 1, "research_gaps": 1, "research_questions": 0, "research_objectives": 1, "hypotheses": 0}
         for key, default_val in default_min.items():
             target_min = int(min_cfg.get(key, default_val))
             if target_min <= 0:
@@ -796,6 +989,7 @@ class PaperKGExtractor:
             "background": [],
             "research_gaps": [],
             "research_questions": [],
+            "research_objectives": [],
             "hypotheses": [],
             "methods": {"main": None, "supports": []},
             "results": {"main": None, "supports": []},
@@ -1218,6 +1412,7 @@ class PaperKGExtractor:
             ("background", "B"),
             ("research_gaps", "G"),
             ("research_questions", "Q"),
+            ("research_objectives", "O"),
             ("hypotheses", "H"),
         ]
         for section, prefix in list_sections:
@@ -1314,10 +1509,10 @@ class PaperKGExtractor:
             return
         narrative = self._ensure_research_narrative_sections(narrative)
         used_ids: set = set()
-        counters = {"B": 1, "G": 1, "Q": 1, "H": 1, "M": 1, "MS": 1, "R": 1, "RS": 1, "C": 1, "CS": 1}
+        counters = {"B": 1, "G": 1, "Q": 1, "O": 1, "H": 1, "M": 1, "MS": 1, "R": 1, "RS": 1, "C": 1, "CS": 1}
 
         # Normalize list sections
-        for section, prefix in (("background", "B"), ("research_gaps", "G"), ("research_questions", "Q"), ("hypotheses", "H")):
+        for section, prefix in (("background", "B"), ("research_gaps", "G"), ("research_questions", "Q"), ("research_objectives", "O"), ("hypotheses", "H")):
             items = narrative.get(section, [])
             normalized = []
             if isinstance(items, list):
@@ -1333,6 +1528,23 @@ class PaperKGExtractor:
                         normalized.append(normalized_item)
                         counters[prefix] += 1
             narrative[section] = normalized
+
+        # Ensure research_objectives exist; fallback to research_questions when missing
+        if not narrative.get("research_objectives") and narrative.get("research_questions"):
+            fallback_objectives: List[Dict[str, Any]] = []
+            for q_item in narrative.get("research_questions", []):
+                if not isinstance(q_item, dict):
+                    continue
+                obj_item = dict(q_item)
+                obj_node = f"O{counters['O']}"
+                while obj_node in used_ids:
+                    counters["O"] += 1
+                    obj_node = f"O{counters['O']}"
+                obj_item["node_id"] = obj_node
+                used_ids.add(obj_node)
+                counters["O"] += 1
+                fallback_objectives.append(obj_item)
+            narrative["research_objectives"] = fallback_objectives
 
         # Normalize main/support blocks
         for block_name, prefix_main, prefix_support in (
@@ -1463,6 +1675,7 @@ class PaperKGExtractor:
 
         background_items = narrative.get("background", []) if isinstance(narrative.get("background"), list) else []
         gap_items = narrative.get("research_gaps", []) if isinstance(narrative.get("research_gaps"), list) else []
+        objective_items = narrative.get("research_objectives", []) if isinstance(narrative.get("research_objectives"), list) else []
 
         method_main = narrative.get("methods", {}).get("main") if isinstance(narrative.get("methods"), dict) else None
         result_main = narrative.get("results", {}).get("main") if isinstance(narrative.get("results"), dict) else None
@@ -1482,6 +1695,10 @@ class PaperKGExtractor:
             if anchor_item:
                 selected_background = _filter_related(background_items, anchor_item, rel_cfg)
                 selected_gaps = _filter_related(gap_items, anchor_item, rel_cfg)
+                if not selected_background and background_items:
+                    selected_background = background_items[:1]
+                if not selected_gaps and gap_items:
+                    selected_gaps = gap_items[:1]
             selected_background = sorted(
                 [item for item in selected_background if isinstance(item, dict) and isinstance(item.get("node_id"), str)],
                 key=lambda x: (_min_segment_index(x) or 0, x.get("node_id")),
@@ -1509,15 +1726,38 @@ class PaperKGExtractor:
                 ordered.append(sid)
             return ordered
 
-        if not questions and not hypotheses:
+        # Use research objectives as primary anchors; fallback to research questions if none
+        anchors = objective_items if objective_items else questions
+        anchor_key = "objective_ids" if objective_items else "question_ids"
+
+        if not anchors and not hypotheses:
             steps = _build_steps(None, None)
             if steps:
-                chains.append({"chain_id": "C1", "question_ids": [], "hypothesis_ids": [], "steps": steps})
+                chains.append({"chain_id": "C1", "objective_ids": [], "question_ids": [], "hypothesis_ids": [], "steps": steps})
             return chains
 
         chain_idx = 1
-        for items, key in ((questions, "question_ids"), (hypotheses, "hypothesis_ids")):
-            for item in items:
+        for item in anchors:
+            node_id = item.get("node_id") if isinstance(item, dict) else None
+            if not isinstance(node_id, str):
+                continue
+            steps = _build_steps(node_id, item if isinstance(item, dict) else None)
+            if not steps:
+                continue
+            chains.append(
+                {
+                    "chain_id": f"C{chain_idx}",
+                    "objective_ids": [node_id] if anchor_key == "objective_ids" else [node_id],
+                    "question_ids": [node_id] if anchor_key == "question_ids" else [],
+                    "hypothesis_ids": [],
+                    "steps": steps,
+                }
+            )
+            chain_idx += 1
+
+        # If there are hypotheses, optionally add chains for them when no objectives/questions exist
+        if not objective_items and not questions and hypotheses:
+            for item in hypotheses:
                 node_id = item.get("node_id") if isinstance(item, dict) else None
                 if not isinstance(node_id, str):
                     continue
@@ -1527,8 +1767,9 @@ class PaperKGExtractor:
                 chains.append(
                     {
                         "chain_id": f"C{chain_idx}",
-                        "question_ids": [node_id] if key == "question_ids" else [],
-                        "hypothesis_ids": [node_id] if key == "hypothesis_ids" else [],
+                        "objective_ids": [node_id],
+                        "question_ids": [],
+                        "hypothesis_ids": [node_id],
                         "steps": steps,
                     }
                 )
@@ -1712,6 +1953,7 @@ class PaperKGExtractor:
 
         t = time.perf_counter()
         metadata = await self._extract_metadata(paper_text)
+        metadata = self._prune_metadata_unrelated(metadata)
         stage_times['metadata'] = time.perf_counter() - t
 
         t = time.perf_counter()

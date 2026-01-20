@@ -627,6 +627,7 @@ class GraphMapper:
             ("background", "background"),
             ("research_gaps", "research_gap"),
             ("research_questions", "research_question"),
+            ("research_objectives", "research_objective"),
             ("hypotheses", "hypothesis"),
         ):
             items = narrative.get(section)
@@ -755,10 +756,13 @@ class GraphMapper:
                 }
                 question_ids = chain.get("question_ids")
                 hypothesis_ids = chain.get("hypothesis_ids")
+                objective_ids = chain.get("objective_ids")
                 if isinstance(question_ids, list):
                     chain_props["question_ids"] = question_ids
                 if isinstance(hypothesis_ids, list):
                     chain_props["hypothesis_ids"] = hypothesis_ids
+                if isinstance(objective_ids, list):
+                    chain_props["objective_ids"] = objective_ids
 
                 chain_node_id = self._ensure_node("LogicChain", chain_uid, chain_props, dry_run)
                 self._ensure_relationship(paper_id, chain_node_id, "HAS_LOGIC_CHAIN", dry_run)

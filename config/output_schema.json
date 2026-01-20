@@ -879,6 +879,68 @@
           },
           "description": "??????"
         },
+        "research_objectives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "description": "Logic node id"
+              },
+              "value": {
+                "type": "string",
+                "description": "?????????"
+              },
+              "evidence_segment_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "????ID??"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "citation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "??????"
+                    },
+                    "citation_text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "??????????"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "description": "????????????????????"
+                    }
+                  },
+                  "required": [
+                    "purpose"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????????"
+              }
+            },
+            "required": [
+              "node_id",
+              "value",
+              "evidence_segment_ids"
+            ],
+            "additionalProperties": false
+          },
+          "description": "??????"
+        },
         "hypotheses": {
           "type": "array",
           "items": {
@@ -1361,6 +1423,12 @@
                   "type": "string"
                 }
               },
+              "objective_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "steps": {
                 "type": "array",
                 "items": {
@@ -1381,6 +1449,7 @@
         "background",
         "research_gaps",
         "research_questions",
+        "research_objectives",
         "hypotheses",
         "methods",
         "results",

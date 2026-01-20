@@ -79,6 +79,7 @@ narrative:
     background: 1
     research_gaps: 1
     research_questions: 0
+    research_objectives: 1
     hypotheses: 0
   evidence_pool:
     per_section_min: 2

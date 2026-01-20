@@ -106,10 +106,24 @@
           "B1",
           "G1",
           "Q1",
+          "O1",
           "M1",
           "R1",
           "C1"
+        ],
+        "objective_ids": [
+          "O1"
         ]
+      }
+    ],
+    "research_objectives": [
+      {
+        "node_id": "O1",
+        "value": "The study aims to improve neural widget robustness across domains.",
+        "evidence_segment_ids": [
+          "S0002"
+        ],
+        "citations": []
       }
     ]
   },

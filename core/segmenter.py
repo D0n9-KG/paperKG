@@ -102,6 +102,23 @@ def _guess_section_from_heading(heading: str) -> str:
     return "unknown"
 
 
+def _guess_section_from_text(text: str) -> str:
+    if not text:
+        return "unknown"
+    lowered = _normalize_heading(text)
+    scores: Dict[str, int] = {}
+    for section, keywords in _SECTION_KEYWORDS.items():
+        score = 0
+        for kw in keywords:
+            if kw in lowered:
+                score += 1
+        scores[section] = score
+    best_section = max(scores.items(), key=lambda x: x[1])[0]
+    if scores.get(best_section, 0) <= 0:
+        return "unknown"
+    return best_section
+
+
 def _detect_heading_positions(text: str) -> List[Tuple[int, str, str]]:
     positions: List[Tuple[int, str, str]] = []
     offset = 0
@@ -189,6 +206,8 @@ def build_evidence_segments(text: str) -> List[Dict[str, object]]:
             continue
         seg_index += 1
         section = _section_for_offset(start, headings)
+        if section == "unknown":
+            section = _guess_section_from_text(seg_text)
         citations = extract_numeric_citations(seg_text)
         segments.append(
             {

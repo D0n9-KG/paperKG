@@ -102,7 +102,7 @@ async def _process_file(
             status = "OK"
         except Exception as exc:
             status = f"FAIL: {exc}"
-            logger.warning(f"{label} failed: {exc}")
+            logger.exception(f"{label} failed: {exc}")
 
     elapsed = time.time() - start
     if pbar:

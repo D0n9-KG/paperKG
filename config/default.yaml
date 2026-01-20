@@ -90,6 +90,7 @@ narrative:
     background: 3
     research_gaps: 1
     research_questions: 1
+    research_objectives: 1
     hypotheses: 0
   evidence_pool:
     per_section_min: 10
@@ -100,6 +101,11 @@ narrative:
     use_distance: true
     max_distance: 8
     fallback_top_k: 0
+  coverage_fill:
+    enable: true
+    per_section_add: 12
+    max_total_add: 80
+    min_segment_chars: 40
 
 logging:
   output_dir: logs

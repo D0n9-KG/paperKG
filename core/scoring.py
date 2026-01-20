@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 CRITICAL_LIST_SECTIONS = [
     "background",
     "research_gaps",
+    "research_objectives",
 ]
 
 CRITICAL_MAIN_SECTIONS = [
@@ -18,7 +19,7 @@ CRITICAL_MAIN_SECTIONS = [
 
 def _iter_logic_items(narrative: Dict[str, Any]) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
-    for section in ("background", "research_gaps", "research_questions", "hypotheses"):
+    for section in ("background", "research_gaps", "research_questions", "research_objectives", "hypotheses"):
         entries = narrative.get(section)
         if isinstance(entries, list):
             items.extend([x for x in entries if isinstance(x, dict)])
@@ -82,4 +83,3 @@ def rule_score(data: Dict[str, Any]) -> Tuple[int, List[str]]:
 
     score = max(0, min(100, score))
     return score, issues
-
