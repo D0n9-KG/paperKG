@@ -2003,18 +2003,19 @@ class PaperKGExtractor:
 
         logic_chain: Dict[str, Any] = {}
 
-        t = time.perf_counter()
-        metadata = await self._extract_metadata(paper_text)
+        async def _timed(name: str, coro: Any) -> Any:
+            start = time.perf_counter()
+            try:
+                return await coro
+            finally:
+                stage_times[name] = time.perf_counter() - start
+
+        metadata, narrative, multimedia = await asyncio.gather(
+            _timed('metadata', self._extract_metadata(paper_text)),
+            _timed('research_narrative', self._extract_research_narrative(paper_text, evidence_segments)),
+            _timed('multimedia', self._extract_multimedia(paper_text)),
+        )
         metadata = self._prune_metadata_unrelated(metadata)
-        stage_times['metadata'] = time.perf_counter() - t
-
-        t = time.perf_counter()
-        narrative = await self._extract_research_narrative(paper_text, evidence_segments)
-        stage_times['research_narrative'] = time.perf_counter() - t
-
-        t = time.perf_counter()
-        multimedia = await self._extract_multimedia(paper_text)
-        stage_times['multimedia'] = time.perf_counter() - t
 
         logic_chain = {
             'paper_metadata': metadata,
