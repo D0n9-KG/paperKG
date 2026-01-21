@@ -25,8 +25,8 @@ from llm.prompts import (
     CONTENT_REWRITE_PROMPT,
     KEYWORDS_PROMPT,
     CITATION_PURPOSE_PROMPT,
-    RESEARCH_NARRATIVE_PROMPT_BASE,
-    RESEARCH_NARRATIVE_EVIDENCE_PROMPT,
+    EVIDENCE_SCAN_PROMPT,
+    MAIN_ID_PICK_PROMPT,
     RESEARCH_NARRATIVE_SYNTH_PROMPT,
 )
 from llm.prompt_builder import PromptBuilder
@@ -224,386 +224,17 @@ class PaperKGExtractor:
             meta["dates"] = dates
         return meta
 
-    @staticmethod
-    def _build_evidence_segments(text: str) -> List[Dict[str, Any]]:
-        return build_evidence_segments(text)
+    def _build_evidence_segments(self, text: str) -> List[Dict[str, Any]]:
+        seg_cfg = self.config.get("segmenter", {}) or {}
+        if not isinstance(seg_cfg, dict):
+            seg_cfg = {}
+        min_chars = int(seg_cfg.get("min_chars", 200))
+        max_chars = int(seg_cfg.get("max_chars", 1200))
+        return build_evidence_segments(text, min_chars=min_chars, max_chars=max_chars)
 
     @staticmethod
     def _clean_segment_text(text: str) -> str:
         return " ".join(text.split()) if isinstance(text, str) else ""
-
-    @staticmethod
-    def _downsample_uniform(items: List[Dict[str, Any]], max_items: int) -> List[Dict[str, Any]]:
-        if max_items <= 0 or len(items) <= max_items:
-            return items
-        if max_items == 1:
-            return [items[0]]
-        total = len(items)
-        step = (total - 1) / float(max_items - 1)
-        indices: List[int] = []
-        used = set()
-        for i in range(max_items):
-            idx = int(round(i * step))
-            if idx in used:
-                j = idx
-                while j < total and j in used:
-                    j += 1
-                if j >= total:
-                    j = idx
-                    while j >= 0 and j in used:
-                        j -= 1
-                idx = max(0, j)
-            if idx not in used:
-                used.add(idx)
-                indices.append(idx)
-        indices = sorted(indices)
-        selected = [items[i] for i in indices if 0 <= i < total]
-        if len(selected) < max_items:
-            for item in items:
-                if item not in selected:
-                    selected.append(item)
-                    if len(selected) >= max_items:
-                        break
-        return selected
-
-    def _build_evidence_pool(self, segments: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-        section_keys = [
-            "background",
-            "problem_formulation",
-            "methodology",
-            "results_and_findings",
-            "discussion_and_conclusion",
-        ]
-        pool: Dict[str, List[Dict[str, Any]]] = {k: [] for k in section_keys}
-        for seg in segments:
-            section = seg.get("section")
-            if section == "references":
-                continue
-            if section not in pool:
-                section = "background"
-            cleaned = self._clean_segment_text(seg.get("text", ""))
-            pool[section].append(
-                {
-                    "id": seg.get("id"),
-                    "text": cleaned,
-                    "citations": seg.get("citations", []),
-                    "section": section,
-                }
-            )
-        narrative_cfg = self.config.get("narrative", {})
-        pool_cfg = narrative_cfg.get("evidence_pool", {}) if isinstance(narrative_cfg, dict) else {}
-        per_section_max = int(pool_cfg.get("per_section_max", 120))
-        per_section_min = int(pool_cfg.get("per_section_min", 20))
-        max_total = int(self.context.get("evidence_max_segments", 400))
-
-        trimmed: Dict[str, List[Dict[str, Any]]] = {}
-        for section in section_keys:
-            items = pool.get(section, [])
-            if per_section_max > 0:
-                trimmed_items = self._downsample_uniform(items, per_section_max)
-            else:
-                trimmed_items = items
-            trimmed[section] = trimmed_items
-
-        total = sum(len(items) for items in trimmed.values())
-        if max_total > 0 and total > max_total:
-            # Reduce while keeping per_section_min
-            reduced: Dict[str, List[Dict[str, Any]]] = {}
-            for section in section_keys:
-                items = trimmed.get(section, [])
-                reduced[section] = items[:max(per_section_min, 0)]
-            remaining = max_total - sum(len(items) for items in reduced.values())
-            if remaining > 0:
-                for section in section_keys:
-                    if remaining <= 0:
-                        break
-                    items = trimmed.get(section, [])
-                    offset = len(reduced[section])
-                    extras = items[offset:]
-                    if not extras:
-                        continue
-                    take = min(len(extras), remaining)
-                    reduced[section].extend(extras[:take])
-                    remaining -= take
-            return reduced
-        return trimmed
-
-    def _rank_segments_by_keywords(self, segments: List[Dict[str, Any]], keywords: List[str]) -> List[Dict[str, Any]]:
-        if not segments:
-            return []
-        if not keywords:
-            return segments
-        scored = []
-        for seg in segments:
-            text = seg.get("text", "")
-            if not isinstance(text, str):
-                text = ""
-            text_lower = text.lower()
-            score = 0
-            for kw in keywords:
-                if kw in text_lower:
-                    score += 1
-            if score > 0:
-                scored.append((score, seg))
-        if not scored:
-            return segments
-        scored.sort(key=lambda x: (-x[0], x[1].get("id", "")))
-        return [seg for _score, seg in scored]
-
-    @staticmethod
-    def _is_reference_like(text: str) -> bool:
-        if not isinstance(text, str):
-            return True
-        cleaned = " ".join(text.strip().split()).lower()
-        if not cleaned:
-            return True
-        if "doi" in cleaned or "http://" in cleaned or "https://" in cleaned:
-            return True
-        if cleaned.startswith("[") and "]" in cleaned[:10]:
-            # Likely a numbered reference entry
-            return True
-        # Heuristic: bibliography-style with year and many commas
-        if re.search(r"\b(19|20)\d{2}\b", cleaned) and cleaned.count(",") >= 3:
-            return True
-        return False
-
-    @staticmethod
-    def _score_keywords(text: str, keywords: List[str]) -> int:
-        if not isinstance(text, str) or not keywords:
-            return 0
-        lowered = text.lower()
-        score = 0
-        for kw in keywords:
-            if kw in lowered:
-                score += 1
-        return score
-
-    def _classify_problem_formulation(self, text: str) -> str:
-        # Choose the most plausible target list for problem-formulation segments
-        keyword_map = {
-            "research_objectives": ["objective", "aim", "goal", "purpose", "aims", "\u76ee\u6807", "\u76ee\u7684", "\u65e8\u5728", "\u672c\u7814\u7a76\u65e8\u5728"],
-            "research_questions": ["question", "whether", "how", "why", "\u95ee\u9898", "\u662f\u5426"],
-            "research_gaps": ["gap", "lack", "limited", "unknown", "challenge", "\u7a7a\u767d", "\u5c40\u9650", "\u4e0d\u8db3"],
-            "hypotheses": ["hypothesis", "we hypothesize", "assume", "\u5047\u8bbe", "\u5047\u8bba"],
-        }
-        scores = {k: self._score_keywords(text, v) for k, v in keyword_map.items()}
-        best = max(scores.items(), key=lambda x: x[1])[0]
-        return best if scores.get(best, 0) > 0 else "background"
-
-    def _expand_narrative_coverage(
-        self,
-        narrative: Dict[str, Any],
-        evidence_segments: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
-        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
-        fill_cfg = narrative_cfg.get("coverage_fill", {}) if isinstance(narrative_cfg.get("coverage_fill", {}), dict) else {}
-        if not bool(fill_cfg.get("enable", True)):
-            return narrative
-
-        per_section_add = int(fill_cfg.get("per_section_add", 12))
-        max_total_add = int(fill_cfg.get("max_total_add", 80))
-        min_segment_chars = int(fill_cfg.get("min_segment_chars", 40))
-
-        if per_section_add <= 0 or max_total_add <= 0:
-            return narrative
-
-        narrative = self._ensure_research_narrative_sections(narrative)
-        used_ids = set(self._collect_evidence_ids_from_narrative(narrative))
-
-        # Build full coverage pool by section from raw segments
-        pool_by_section: Dict[str, List[Dict[str, Any]]] = {
-            "background": [],
-            "problem_formulation": [],
-            "methodology": [],
-            "results_and_findings": [],
-            "discussion_and_conclusion": [],
-        }
-        for seg in evidence_segments:
-            if not isinstance(seg, dict):
-                continue
-            seg_id = seg.get("id")
-            if not isinstance(seg_id, str):
-                continue
-            if seg_id in used_ids:
-                continue
-            section = seg.get("section")
-            if section == "references":
-                continue
-            if section not in pool_by_section:
-                section = "background"
-            pool_by_section[section].append(seg)
-
-        keyword_map = {
-            "background": ["background", "overview", "introduction", "\u80cc\u666f", "\u5f15\u8a00"],
-            "problem_formulation": ["problem", "objective", "aim", "goal", "question", "\u7814\u7a76\u95ee\u9898", "\u7814\u7a76\u76ee\u6807", "\u7814\u7a76\u7a7a\u767d", "\u76ee\u7684"],
-            "methodology": ["method", "methods", "methodology", "materials", "experiment", "simulation", "model", "approach", "\u65b9\u6cd5", "\u6750\u6599", "\u5b9e\u9a8c", "\u4eff\u771f", "\u6a21\u578b"],
-            "results_and_findings": ["result", "results", "finding", "analysis", "observations", "\u7ed3\u679c", "\u53d1\u73b0", "\u5206\u6790"],
-            "discussion_and_conclusion": ["discussion", "conclusion", "limitations", "future work", "summary", "\u8ba8\u8bba", "\u7ed3\u8bba", "\u5c40\u9650", "\u672a\u6765\u5de5\u4f5c", "\u603b\u7ed3"],
-        }
-
-        def _append_item(target: str, seg: Dict[str, Any]) -> bool:
-            seg_id = seg.get("id")
-            if not isinstance(seg_id, str) or seg_id in used_ids:
-                return False
-            text = self._clean_segment_text(seg.get("text", ""))
-            if not text or len(text) < min_segment_chars:
-                return False
-            if self._is_reference_like(text):
-                return False
-            item = {
-                "value": text,
-                "evidence_segment_ids": [seg_id],
-                "citations": self._build_citation_entries(seg.get("citations", [])),
-            }
-            if target in ("background", "research_gaps", "research_questions", "research_objectives", "hypotheses"):
-                narrative[target].append(item)
-            elif target == "methods_support":
-                narrative["methods"]["supports"].append(item)
-            elif target == "results_support":
-                narrative["results"]["supports"].append(item)
-            elif target == "conclusions_support":
-                narrative["conclusions"]["supports"].append(item)
-            else:
-                return False
-            used_ids.add(seg_id)
-            return True
-
-        total_added = 0
-        for section, items in pool_by_section.items():
-            if total_added >= max_total_add:
-                break
-            ranked = self._rank_segments_by_keywords(
-                [{"id": seg.get("id"), "text": self._clean_segment_text(seg.get("text", "")), "citations": seg.get("citations", []), "section": section} for seg in items],
-                keyword_map.get(section, []),
-            )
-            # Map ranked back to original segments by id
-            seg_by_id = {seg.get("id"): seg for seg in items if isinstance(seg, dict) and seg.get("id")}
-            added = 0
-            for cand in ranked:
-                if total_added >= max_total_add or added >= per_section_add:
-                    break
-                seg = seg_by_id.get(cand.get("id"))
-                if not seg:
-                    continue
-                if section == "background":
-                    target = "background"
-                elif section == "problem_formulation":
-                    target = self._classify_problem_formulation(cand.get("text", ""))
-                elif section == "methodology":
-                    target = "methods_support"
-                elif section == "results_and_findings":
-                    target = "results_support"
-                else:
-                    target = "conclusions_support"
-                if _append_item(target, seg):
-                    total_added += 1
-                    added += 1
-
-        return narrative
-
-    def _ensure_minimum_evidence(
-        self,
-        selections: Dict[str, List[str]],
-        evidence_pool: Dict[str, List[Dict[str, Any]]],
-    ) -> Dict[str, List[str]]:
-        narrative_cfg = self.config.get("narrative", {})
-        min_cfg = narrative_cfg.get("min_counts", {}) if isinstance(narrative_cfg, dict) else {}
-        default_min = {
-            "background": 3,
-            "research_gaps": 1,
-            "research_questions": 1,
-            "research_objectives": 1,
-            "hypotheses": 0,
-        }
-        # Keyword heuristics
-        keyword_map = {
-            "background": ["background", "overview", "introduction", "\u80cc\u666f", "\u5f15\u8a00"],
-            "research_gaps": ["gap", "lack", "limited", "unknown", "challenge", "\u7a7a\u767d", "\u5c40\u9650"],
-            "research_questions": ["question", "aim", "objective", "goal", "whether", "\u95ee\u9898", "\u76ee\u6807", "\u76ee\u7684"],
-            "research_objectives": ["objective", "aim", "goal", "purpose", "\u76ee\u6807", "\u76ee\u7684", "\u65e8\u5728", "\u76ee\u7684\u662f"],
-            "hypotheses": ["hypothesis", "we hypothesize", "assume", "\u5047\u8bbe", "\u5047\u8bba"],
-        }
-
-        mapping = {
-            "background": "background_ids",
-            "research_gaps": "research_gap_ids",
-            "research_questions": "research_question_ids",
-            "research_objectives": "objective_ids",
-            "hypotheses": "hypothesis_ids",
-        }
-
-        for key, sel_key in mapping.items():
-            target_min = int(min_cfg.get(key, default_min.get(key, 0)))
-            current = selections.get(sel_key, [])
-            if not isinstance(current, list):
-                current = []
-            current_ids = [cid for cid in current if isinstance(cid, str)]
-            if len(current_ids) >= target_min:
-                selections[sel_key] = current_ids
-                continue
-
-            pool_section = "background"
-            if key == "research_gaps":
-                pool_section = "problem_formulation"
-            elif key == "research_questions":
-                pool_section = "problem_formulation"
-            elif key == "research_objectives":
-                pool_section = "problem_formulation"
-            elif key == "hypotheses":
-                pool_section = "problem_formulation"
-            segments = evidence_pool.get(pool_section, [])
-            ranked = self._rank_segments_by_keywords(segments, keyword_map.get(key, []))
-            for seg in ranked:
-                sid = seg.get("id")
-                if not isinstance(sid, str):
-                    continue
-                if sid in current_ids:
-                    continue
-                current_ids.append(sid)
-                if len(current_ids) >= target_min:
-                    break
-            selections[sel_key] = current_ids
-        # If objectives are still missing, borrow from research questions (fallback)
-        objective_min = int(min_cfg.get("research_objectives", default_min.get("research_objectives", 0)))
-        objective_ids = selections.get("objective_ids", [])
-        question_ids = selections.get("research_question_ids", [])
-        if not isinstance(objective_ids, list):
-            objective_ids = []
-        if not isinstance(question_ids, list):
-            question_ids = []
-        if len(objective_ids) < objective_min and question_ids:
-            for qid in question_ids:
-                if not isinstance(qid, str):
-                    continue
-                if qid not in objective_ids:
-                    objective_ids.append(qid)
-                if len(objective_ids) >= objective_min:
-                    break
-            selections["objective_ids"] = objective_ids
-        return selections
-
-    def _ensure_main_support_ids(
-        self,
-        selections: Dict[str, List[str]],
-        evidence_pool: Dict[str, List[Dict[str, Any]]],
-    ) -> Dict[str, List[str]]:
-        mapping = {
-            "method_main_ids": "methodology",
-            "result_main_ids": "results_and_findings",
-            "conclusion_main_ids": "discussion_and_conclusion",
-        }
-        for sel_key, section in mapping.items():
-            ids = selections.get(sel_key, [])
-            if not isinstance(ids, list):
-                ids = []
-            if ids:
-                continue
-            segments = evidence_pool.get(section, [])
-            if segments:
-                first_id = segments[0].get("id")
-                if isinstance(first_id, str):
-                    selections[sel_key] = [first_id]
-        return selections
 
     @staticmethod
     def _build_citation_entries(citations: List[Any]) -> List[Dict[str, Any]]:
@@ -623,7 +254,7 @@ class PaperKGExtractor:
         self,
         narrative: Dict[str, Any],
         selected_ids: Dict[str, List[str]],
-        evidence_pool: Dict[str, List[Dict[str, Any]]],
+        segments_by_id: Dict[str, Dict[str, Any]],
     ) -> Dict[str, Any]:
         if not isinstance(narrative, dict):
             return narrative
@@ -631,15 +262,9 @@ class PaperKGExtractor:
             return narrative
 
         id_to_item: Dict[str, Dict[str, Any]] = {}
-        for items in evidence_pool.values():
-            if not isinstance(items, list):
-                continue
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                sid = item.get("id")
-                if isinstance(sid, str) and sid not in id_to_item:
-                    id_to_item[sid] = item
+        for sid, item in segments_by_id.items():
+            if isinstance(sid, str) and isinstance(item, dict):
+                id_to_item[sid] = item
 
         def _existing_ids(items: List[Dict[str, Any]]) -> set:
             ids = set()
@@ -657,8 +282,8 @@ class PaperKGExtractor:
             item = id_to_item.get(seg_id)
             if not isinstance(item, dict):
                 return None
-            text = item.get("text", "")
-            if not isinstance(text, str) or not text.strip():
+            text = self._clean_segment_text(item.get("text", ""))
+            if not text:
                 return None
             citations = self._build_citation_entries(item.get("citations", []))
             return {
@@ -732,23 +357,8 @@ class PaperKGExtractor:
 
         return narrative
 
-    async def _select_evidence_ids(
-        self,
-        evidence_pool: Dict[str, List[Dict[str, Any]]],
-        agent_name: str = "research_narrative_selector",
-    ) -> Dict[str, List[str]]:
-        prompt = RESEARCH_NARRATIVE_EVIDENCE_PROMPT.replace(
-            "{evidence_pool}", json.dumps(evidence_pool, ensure_ascii=False, indent=2)
-        )
-        try:
-            selected = await self._call_agent(agent_name, prompt, "", strict_json=True)
-        except Exception as exc:
-            logger.warning(f"Evidence id selection failed: {exc}")
-            selected = {}
-        if not isinstance(selected, dict):
-            selected = {}
-        # Normalize lists
-        keys = [
+    def _selection_keys(self) -> List[str]:
+        return [
             "background_ids",
             "research_gap_ids",
             "research_question_ids",
@@ -761,16 +371,160 @@ class PaperKGExtractor:
             "conclusion_main_ids",
             "conclusion_support_ids",
         ]
-        normalized: Dict[str, List[str]] = {}
-        for key in keys:
-            items = selected.get(key, [])
+
+    def _normalize_selection_payload(self, payload: Any) -> Dict[str, List[str]]:
+        normalized: Dict[str, List[str]] = {key: [] for key in self._selection_keys()}
+        if not isinstance(payload, dict):
+            return normalized
+        for key in self._selection_keys():
+            items = payload.get(key, [])
             if isinstance(items, list):
                 normalized[key] = [str(i).strip() for i in items if isinstance(i, (str, int)) and str(i).strip()]
-            else:
-                normalized[key] = []
-        normalized = self._ensure_minimum_evidence(normalized, evidence_pool)
-        normalized = self._ensure_main_support_ids(normalized, evidence_pool)
         return normalized
+
+    def _chunk_segment_payloads(self, segments: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
+        scan_cfg = narrative_cfg.get("evidence_scan", {}) if isinstance(narrative_cfg.get("evidence_scan", {}), dict) else {}
+        max_chars = int(scan_cfg.get("max_chars", self.context.get("evidence_max_chars", 20000)))
+        max_segments = int(scan_cfg.get("max_segments_per_call", 40))
+        text_max = int(scan_cfg.get("text_max_chars", 800))
+
+        batches: List[List[Dict[str, Any]]] = []
+        current: List[Dict[str, Any]] = []
+        current_chars = 0
+        for seg in segments:
+            if not isinstance(seg, dict):
+                continue
+            seg_id = seg.get("id")
+            text = self._clean_segment_text(seg.get("text", ""))
+            if not isinstance(seg_id, str) or not text:
+                continue
+            if len(text) > text_max:
+                text = text[:text_max]
+            item = {"id": seg_id, "text": text}
+            item_len = len(text) + 20
+            if current and (len(current) >= max_segments or current_chars + item_len > max_chars):
+                batches.append(current)
+                current = []
+                current_chars = 0
+            current.append(item)
+            current_chars += item_len
+        if current:
+            batches.append(current)
+        return batches
+
+    async def _select_evidence_ids(
+        self,
+        segments: List[Dict[str, Any]],
+        agent_name: str = "research_narrative_selector",
+    ) -> Dict[str, List[str]]:
+        batches = self._chunk_segment_payloads(segments)
+        if not batches:
+            return {key: [] for key in self._selection_keys()}
+
+        api_limit = int(self.workflow.get("api_concurrent_limit", 6))
+        semaphore = asyncio.Semaphore(max(1, api_limit))
+
+        async def _run_batch(batch: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+            payload = json.dumps({"segments": batch}, ensure_ascii=False, indent=2)
+            try:
+                parsed = await self._call_agent(agent_name, EVIDENCE_SCAN_PROMPT, payload, strict_json=True)
+            except Exception as exc:
+                logger.warning(f"Evidence scan failed: {exc}")
+                return {key: [] for key in self._selection_keys()}
+            return self._normalize_selection_payload(parsed)
+
+        async def _guarded(batch: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+            async with semaphore:
+                return await _run_batch(batch)
+
+        results = await asyncio.gather(*[_guarded(batch) for batch in batches])
+        merged: Dict[str, List[str]] = {key: [] for key in self._selection_keys()}
+        seen: Dict[str, set] = {key: set() for key in self._selection_keys()}
+        for result in results:
+            for key in self._selection_keys():
+                for sid in result.get(key, []):
+                    if sid not in seen[key]:
+                        seen[key].add(sid)
+                        merged[key].append(sid)
+        return merged
+
+    async def _resolve_main_ids(
+        self,
+        selections: Dict[str, List[str]],
+        segments_by_id: Dict[str, Dict[str, Any]],
+        agent_name: str = "research_narrative_selector",
+    ) -> Dict[str, List[str]]:
+        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
+        picker_cfg = narrative_cfg.get("main_picker", {}) if isinstance(narrative_cfg.get("main_picker", {}), dict) else {}
+        max_candidates = int(picker_cfg.get("max_candidates", 40))
+        text_max = int(picker_cfg.get("text_max_chars", 800))
+
+        def _build_candidates(main_key: str, support_key: str) -> List[Dict[str, str]]:
+            candidates = selections.get(main_key) or []
+            if not candidates:
+                candidates = selections.get(support_key) or []
+            trimmed: List[Dict[str, str]] = []
+            for sid in candidates:
+                seg = segments_by_id.get(sid)
+                if not seg:
+                    continue
+                text = self._clean_segment_text(seg.get("text", ""))
+                if not text:
+                    continue
+                if len(text) > text_max:
+                    text = text[:text_max]
+                trimmed.append({"id": sid, "text": text})
+                if len(trimmed) >= max_candidates:
+                    break
+            return trimmed
+
+        method_candidates = _build_candidates("method_main_ids", "method_support_ids")
+        result_candidates = _build_candidates("result_main_ids", "result_support_ids")
+        conclusion_candidates = _build_candidates("conclusion_main_ids", "conclusion_support_ids")
+
+        if not (method_candidates or result_candidates or conclusion_candidates):
+            return selections
+
+        payload = json.dumps(
+            {
+                "method_candidates": method_candidates,
+                "result_candidates": result_candidates,
+                "conclusion_candidates": conclusion_candidates,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        try:
+            parsed = await self._call_agent(agent_name, MAIN_ID_PICK_PROMPT, payload, strict_json=True)
+        except Exception as exc:
+            logger.warning(f"Main id pick failed: {exc}")
+            parsed = {}
+
+        def _pick(field: str, candidates: List[Dict[str, str]]) -> Optional[str]:
+            if isinstance(parsed, dict):
+                picked = parsed.get(field)
+                if isinstance(picked, str) and picked in segments_by_id:
+                    return picked
+            if candidates:
+                return candidates[0].get("id")
+            return None
+
+        method_main = _pick("method_main_id", method_candidates)
+        result_main = _pick("result_main_id", result_candidates)
+        conclusion_main = _pick("conclusion_main_id", conclusion_candidates)
+
+        def _apply(main_key: str, support_key: str, main_id: Optional[str]) -> None:
+            if main_id:
+                selections[main_key] = [main_id]
+                supports = selections.get(support_key, [])
+                if isinstance(supports, list) and main_id in supports:
+                    selections[support_key] = [sid for sid in supports if sid != main_id]
+
+        _apply("method_main_ids", "method_support_ids", method_main)
+        _apply("result_main_ids", "result_support_ids", result_main)
+        _apply("conclusion_main_ids", "conclusion_support_ids", conclusion_main)
+        return selections
 
     def _extract_doi_from_text(self, text: str) -> Optional[str]:
         import re
@@ -912,10 +666,34 @@ class PaperKGExtractor:
         paper_text: str,
         evidence_segments: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        evidence_pool = self._build_evidence_pool(evidence_segments)
-        selected_ids = await self._select_evidence_ids(evidence_pool)
+        segments_by_id = {
+            seg.get("id"): seg for seg in evidence_segments if isinstance(seg, dict) and seg.get("id")
+        }
+        selected_ids = await self._select_evidence_ids(evidence_segments)
+        selected_ids = await self._resolve_main_ids(selected_ids, segments_by_id)
         selected_text = json.dumps(selected_ids, ensure_ascii=False, indent=2)
-        prompt = RESEARCH_NARRATIVE_SYNTH_PROMPT.replace("{evidence_pool}", json.dumps(evidence_pool, ensure_ascii=False, indent=2))
+
+        selected_id_set = set()
+        for key in self._selection_keys():
+            for sid in selected_ids.get(key, []):
+                if isinstance(sid, str):
+                    selected_id_set.add(sid)
+        selected_segments = []
+        for seg in evidence_segments:
+            sid = seg.get("id") if isinstance(seg, dict) else None
+            if not isinstance(sid, str) or sid not in selected_id_set:
+                continue
+            selected_segments.append(
+                {
+                    "id": sid,
+                    "text": self._clean_segment_text(seg.get("text", "")),
+                    "citations": seg.get("citations", []),
+                }
+            )
+
+        prompt = RESEARCH_NARRATIVE_SYNTH_PROMPT.replace(
+            "{segments}", json.dumps(selected_segments, ensure_ascii=False, indent=2)
+        )
         prompt = prompt.replace("{selected_ids}", selected_text)
 
         primary_ok = True
@@ -942,9 +720,7 @@ class PaperKGExtractor:
                 except Exception as exc:
                     logger.warning(f"Research narrative retry failed: {exc}")
             narrative = self._ensure_research_narrative_sections(narrative)
-            narrative = self._backfill_narrative_with_selected_ids(narrative, selected_ids, evidence_pool)
-            # Expand coverage with additional evidence-backed items
-            narrative = self._expand_narrative_coverage(narrative, evidence_segments)
+            narrative = self._backfill_narrative_with_selected_ids(narrative, selected_ids, segments_by_id)
             return self._ensure_research_narrative_sections(narrative)
         return {}
 

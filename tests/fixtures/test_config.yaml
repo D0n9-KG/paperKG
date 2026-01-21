@@ -37,6 +37,10 @@ workflow:
 context:
   max_context_length: 500000
 
+segmenter:
+  min_chars: 200
+  max_chars: 1200
+
 output:
   indent: 2
   ensure_ascii: false
@@ -75,12 +79,10 @@ citation_purpose:
   enable: false
 
 narrative:
-  min_counts:
-    background: 1
-    research_gaps: 1
-    research_questions: 0
-    research_objectives: 1
-    hypotheses: 0
-  evidence_pool:
-    per_section_min: 2
-    per_section_max: 10
+  evidence_scan:
+    max_segments_per_call: 20
+    max_chars: 10000
+    text_max_chars: 800
+  main_picker:
+    max_candidates: 20
+    text_max_chars: 800

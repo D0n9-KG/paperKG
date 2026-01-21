@@ -3,137 +3,127 @@
 集中管理所有代理使用的提示语
 """
 
-# 元数据提取提示语 - 基础模板（动态配置）
-METADATA_PROMPT_BASE = """你是一位经验丰富的学术文献管理专家，擅长从学术论文中准确提取元数据信息。
+# 元数据提取提示语
+METADATA_PROMPT_BASE = """你是经验丰富的学术文献管理专家，擅长从论文中准确提取元数据。
 
-【任务】
-请从以下论文文本中提取元数据信息。
-
-【论文文本（前5000字）】
-{{text}}
-
-【提取要求】
-1. **标题（title）**：提取完整的论文标题，保留原文格式和大小写
-2. **作者（authors）**：提取所有作者的姓名，格式为 ["作者1", "作者2", ...]。若无法获取，则返回空数组 []
-3. **发表年份（publication_year）**：提取4位数年份（如 "2024"）。若无法确定，返回 null
-4. **期刊或会议（journal_or_conference）**：提取完整的期刊名称或会议名称。若无法获取，返回 null
-5. **DOI（doi）**：提取完整的DOI链接或DOI标识符。若无DOI，返回 null
-6. **关键词（keywords）**：提取论文中明确列出的关键词。若无关键词部分，返回空数组 []
-7. **摘要（abstract）**：提取完整的摘要原文，保留换行和段落结构。若无摘要，返回 null
-
-【重要提示】
-- 对于无法获取的信息，字符串类型字段使用 null，数组类型字段使用 []
-- 不要编造或推测缺失的信息
-- 确保JSON格式正确，可被程序解析
-
-{OUTPUT_FORMAT_SECTION}"""
-
-# 多媒体内容提取提示语 - 基础模板（动态配置）
-MULTIMEDIA_CONTENT_PROMPT_BASE = """你是学术抽取助手。请从论文中提取多媒体与参考文献信息（图表、公式、引用）。
-
-论文文本：
+【论文文本】
 {text}
 
-要求：
-1) 输出必须严格符合“输出格式”中的schema。
-2) 不要臆造；若无信息，按schema允许的空值输出。
-3) 仅输出JSON。
+【提取要求】
+1) title：完整标题，保留原文大小写与格式。
+2) authors：作者姓名列表，如无法获取返回 []。
+3) publication_year：四位年份，如无法确定返回 null。
+4) journal_or_conference：期刊/会议名称，如无法获取返回 null。
+5) doi：完整 DOI 或 DOI 链接，如无返回 null。
+6) keywords：文中明确列出的关键词，如无返回 []。
+7) abstract：完整摘要原文，如无返回 null。
+
+【注意】
+- 不要臆测或编造缺失信息。
+- 严格输出 JSON。
 
 {OUTPUT_FORMAT_SECTION}"""
 
+
+# 多媒体内容提取提示语
+MULTIMEDIA_CONTENT_PROMPT_BASE = """你是学术抽取助手，请从论文中提取图表、公式、引用等多媒体与参考文献信息。
+
+【论文文本】
+{text}
+
+【要求】
+1) 输出必须符合“输出格式”中的 schema。
+2) 不要臆造；若无信息按 schema 允许的空值输出。
+3) 仅输出 JSON。
+
+{OUTPUT_FORMAT_SECTION}"""
+
+
 # JSON schema 修复提示语
-JSON_SCHEMA_REPAIR_PROMPT = """你是JSON修复助手。根据校验错误修复JSON。
+JSON_SCHEMA_REPAIR_PROMPT = """你是 JSON 修复助手，根据校验错误修复 JSON。
 
 【校验错误】
 {validation_errors}
 
-【待修复JSON】
+【待修复 JSON】
 {json_data}
 
-要求：仅输出修复后的JSON，不要解释。
+仅输出修复后的 JSON，不要解释。
 """
 
-QUALITY_RATER_PROMPT = """你是质量评估助手。请对抽取结果进行打分（0-100）并列出问题。
 
-论文文本：
+# 质量评分提示语
+QUALITY_RATER_PROMPT = """你是质量评估助手，请对抽取结果打分（0-100）并列出问题。
+
+【论文文本】
 {paper_text}
 
-抽取结果：
+【抽取结果】
 {extracted_json}
 
-输出JSON：{"score": 0, "issues": [], "needs_refine": false}
+输出 JSON：{"score": 0, "issues": [], "needs_refine": false}
 """
 
-CONTENT_REWRITE_PROMPT = """你是内容改写助手。请在不改变事实的前提下优化与修复抽取结果。
 
-论文文本：
+# 内容改写提示语
+CONTENT_REWRITE_PROMPT = """你是内容改写助手，请在不改变事实的前提下优化并修复抽取结果。
+
+【论文文本】
 {paper_text}
 
-抽取结果：
+【抽取结果】
 {extracted_json}
 
-仅输出JSON，不要解释。
+仅输出 JSON，不要解释。
 """
 
+
+# 关键词提示语
 KEYWORDS_PROMPT = """你是关键词提取助手。
 
-论文文本：
+【论文文本】
 {text}
 
-请提取最多 {max_keywords} 个关键词，输出JSON：{"keywords": []}
+请提取最多 {max_keywords} 个关键词，输出 JSON：{"keywords": []}
 """
 
+
+# 引用用途提示语
 CITATION_PURPOSE_PROMPT = """你是引用作用分析助手。
 
 引用：{citation}
 
 上下文：{context}
 
-输出JSON：{"purpose": ""}
+输出 JSON：{"purpose": ""}
 """
 
-RESEARCH_NARRATIVE_PROMPT_BASE = """你是资深学术分析专家。只抽取 research_narrative 部分。
 
-【证据片段库（已编号，必须从中选用）】
-{evidence_pool}
+# 证据扫描提示语（分批）
+EVIDENCE_SCAN_PROMPT = """你是论文证据识别助手。请从当前批次片段中判断哪些片段属于论文主要内容，并将其ID划入对应类别。
 
-【要求】
-1) 输出必须符合“输出格式”中的schema，不得新增字段。
-2) 每条 value 必须是完整、可独立阅读的句子。
-3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据片段库中已有的ID。
-4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
-5) background / research_gaps / research_questions / research_objectives / hypotheses 为“多条陈述列表”。
-   - research_objectives 至少给出1条；若原文未明确给出，基于 research_questions 改写为研究目的。
-6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构：
-   - main：1条总括性主结论（可为 null）
-   - supports：若干条支撑子结论（可为空数组）
-7) citations 字段用于记录引用及其作用说明：
-   - citations 列表中的 citation_id 应来自证据片段中的数字引用（如 [3]）。
-   - citation_text 可置为 null（后续系统会补全）。
-   - purpose 若无法判断，可暂时输出空字符串 ""。
-8) logic_chains 必须是“多条链”，按研究目的拆分：
-   - objective_ids 对应 research_objectives 中的 node_id
-   - 如果确实没有研究目的，可使用 research_questions 作为 fallback（将 question_id 作为 objective_id）
-   - steps 为该链条的 node_id 顺序列表（背景→空白→研究目的→方法main→结果main→结论main）
-9) 仅输出JSON。
+【输入JSON】
+{text}
 
-{OUTPUT_FORMAT_SECTION}"""
-
-
-# Research narrative evidence map prompt (stage 1)
-RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据选择助手。请仅从给定的证据片段库中选择最相关的片段ID。
-
-【证据片段库】
-{evidence_pool}
+【类别】
+- background: 引言/背景/相关工作
+- research_gap: 研究空白/不足/问题
+- research_question: 研究问题
+- objective: 研究目标
+- hypothesis: 假设
+- method: 方法/模型/实验设计
+- result: 结果/发现/分析
+- conclusion: 讨论/结论/展望
 
 【要求】
-1) 只能输出证据库中已有的ID，不得编造。
-2) 尽量覆盖全文与主要章节（引言/方法/结果/讨论/结论），每个章节至少选1条可用证据。
-3) 背景/空白/问题/研究目的/假设应尽量覆盖论文主线，必要时可多选。
-4) 方法/结果/结论分为 main 与 supports：main 代表总括性陈述的证据。
-5) 如果确实没有证据，请输出空数组。
+1) 只能使用本批次片段的ID，不得编造。
+2) 保持覆盖范围宽、尽量保留主要信息。
+3) 只剔除明显无意义片段（如参考文献/致谢/版权/纯图表标题/编号）。
+4) 每个片段最多归入一个类别。
+5) methods/results/conclusions 必须区分 main/supports：main 选出最能概括该类别的1个核心片段，其余放 supports。
+6) 如果没有对应片段，输出空数组。
 
-【输出（仅JSON）】
+【输出JSON】
 {
   "background_ids": [],
   "research_gap_ids": [],
@@ -150,27 +140,39 @@ RESEARCH_NARRATIVE_EVIDENCE_PROMPT = """你是论文证据选择助手。请仅�
 """
 
 
-# Research narrative synthesis prompt (stage 2)
+# 主结论/主方法/主结果选择提示语
+MAIN_ID_PICK_PROMPT = """你是主方法/主结果/主结论选择助手。请从候选片段中选出最能代表 main 的ID。
+
+【输入JSON】
+{text}
+
+【要求】
+1) 只能使用候选ID，不得编造。
+2) 若没有合适候选，返回空字符串""。
+
+【输出JSON】
+{"method_main_id":"","result_main_id":"","conclusion_main_id":""}
+"""
+
+
+# 研究叙事合成提示语
 RESEARCH_NARRATIVE_SYNTH_PROMPT = """你是资深学术分析专家。只抽取 research_narrative 部分。
 
-【证据片段库（已编号，必须从中选用）】
-{evidence_pool}
+【已选证据片段（带ID）】
+{segments}
 
-【已选证据ID（来自上一步）】
+【已选证据ID分组（来自上一步）】
 {selected_ids}
 
 【要求】
-1) 输出必须符合“输出格式”中的schema，不得新增字段。
+1) 输出必须符合“输出格式”中的 schema，不得新增字段。
 2) 每条 value 必须是完整、可独立阅读的句子。
-3) 每条陈述必须给出 evidence_segment_ids（至少1个），且只能引用证据库中已有的ID。
-4) 严禁臆造；若没有证据，不要输出该条陈述；methods/results/conclusions 的 main 可以为 null。
+3) 每条陈述必须给出 evidence_segment_ids（至少一个），且只能使用已选证据ID。
+4) 严禁臆造；若无证据，不要输出该条陈述。
 5) background / research_gaps / research_questions / research_objectives / hypotheses 为多条陈述列表。
-   - research_objectives 至少给出1条；若原文未明确给出，基于 research_questions 改写为研究目的。
 6) methods / results / conclusions 为“主结论 + 关键支撑子结论”结构。
 7) citations 字段用于记录引用及其作用说明；若无法判断可先置空字符串。
-8) logic_chains 必须是“多条链”，按研究目的拆分，steps 只包含主链 node_id（背景→空白→研究目的→方法main→结果main→结论main），不要包含 supports。
-   - objective_ids 对应 research_objectives 的 node_id
-   - 若无研究目的，可用 research_questions 作为 fallback（将 question_id 作为 objective_id）
-9) 仅输出JSON。
+8) logic_chains 必须是“多条链”，steps 只包含主链 node_id（背景→空白→研究目的→方法main→结果main→结论main），不包含 supports。
+9) 仅输出 JSON。
 
 {OUTPUT_FORMAT_SECTION}"""

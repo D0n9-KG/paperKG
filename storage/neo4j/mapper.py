@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 from typing import TYPE_CHECKING
 
@@ -45,6 +46,23 @@ def _normalize_keyword(keyword: str) -> str:
 
 def _normalize_text(value: str) -> str:
     return " ".join(value.strip().lower().split())
+
+
+def _normalize_ref_id(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    # Strip surrounding brackets or parentheses
+    m = re.match(r"^[\[\(]?\s*(\d+)\s*[\]\)]?$", text)
+    if m:
+        return m.group(1)
+    # Fallback: first digit sequence
+    digits = re.findall(r"\d+", text)
+    if digits:
+        return digits[0]
+    return text
 
 
 def _collect_scalar_props(obj: Dict[str, Any]) -> Dict[str, Any]:
@@ -129,7 +147,7 @@ class GraphMapper:
             self._map_multimedia_content(multimedia, multimedia_id, uid, paper_id, key_value, dry_run)
 
         # Foundational works relationships (legacy; no-op for v2 structure)
-        self._map_foundational_relationships(data, paper_id, dry_run)
+        self._map_foundational_relationships(data, paper_id, key_value, dry_run)
 
         return {
             "paper_uid": key_value,
@@ -154,12 +172,14 @@ class GraphMapper:
         seed = "|".join(seed_parts) or (fallback_uid or "unknown-paper")
         return "citation_hash", _citation_hash(seed)
 
-    def _paper_key_from_reference(self, reference: Dict[str, Any]) -> Tuple[str, str]:
+    def _paper_key_from_reference(self, reference: Dict[str, Any], paper_uid: Optional[str] = None) -> Tuple[str, str]:
         doi = _normalize_doi(reference.get("doi"))
         if doi:
             return "doi", doi
         citation = str(reference.get("citation") or "").strip()
         seed = citation or json.dumps(reference, ensure_ascii=False)
+        if paper_uid:
+            seed = f"{paper_uid}|{seed}"
         return "citation_hash", _citation_hash(seed)
 
     def _build_paper_properties(self, metadata: Dict[str, Any], key_type: str, key_value: str) -> Dict[str, Any]:
@@ -669,9 +689,9 @@ class GraphMapper:
             for ref in ref_list:
                 if not isinstance(ref, dict):
                     continue
-                ref_id = ref.get("id")
+                ref_id = _normalize_ref_id(ref.get("id"))
                 if ref_id is not None:
-                    ref_by_id[str(ref_id).strip()] = ref
+                    ref_by_id[ref_id] = ref
                 citation = ref.get("citation")
                 if isinstance(citation, str) and citation.strip():
                     ref_by_text[_normalize_text(citation)] = ref
@@ -701,10 +721,8 @@ class GraphMapper:
                 for cite in citations:
                     if not isinstance(cite, dict):
                         continue
-                    citation_id = cite.get("citation_id")
+                    citation_id = _normalize_ref_id(cite.get("citation_id"))
                     citation_text = cite.get("citation_text")
-                    if citation_id is not None and not isinstance(citation_id, str):
-                        citation_id = str(citation_id)
                     if citation_text is not None and not isinstance(citation_text, str):
                         citation_text = str(citation_text)
 
@@ -714,13 +732,14 @@ class GraphMapper:
                     if ref_item is None and citation_text:
                         ref_item = ref_by_text.get(_normalize_text(citation_text))
 
+                    # 如果 citation_id 不在参考文献列表且 citation_text 无法匹配，跳过该引用
                     if ref_item is None:
-                        seed = citation_text or citation_id or json.dumps(cite, ensure_ascii=False)
-                        ref_key_type, ref_key_value = ("citation_hash", _citation_hash(seed))
-                        ref_props = self._build_reference_properties({}, ref_key_type, ref_key_value)
-                    else:
-                        ref_key_type, ref_key_value = self._paper_key_from_reference(ref_item)
-                        ref_props = self._build_reference_properties(ref_item, ref_key_type, ref_key_value)
+                        if citation_id or citation_text:
+                            continue
+                        continue
+
+                    ref_key_type, ref_key_value = self._paper_key_from_reference(ref_item, paper_uid)
+                    ref_props = self._build_reference_properties(ref_item, ref_key_type, ref_key_value)
 
                     ref_node = None
                     if not dry_run:
@@ -894,7 +913,7 @@ class GraphMapper:
             return None
         return _normalize_doi(match.group(1).rstrip(").,;"))
 
-    def _map_foundational_relationships(self, data: Dict[str, Any], paper_id: Optional[str], dry_run: bool):
+    def _map_foundational_relationships(self, data: Dict[str, Any], paper_id: Optional[str], paper_uid: Optional[str], dry_run: bool):
         if not isinstance(data, dict):
             return
         background = data.get("research_narrative", {}).get("background", {})
@@ -909,9 +928,8 @@ class GraphMapper:
             for idx, ref in enumerate(ref_list):
                 if not isinstance(ref, dict):
                     continue
-                ref_id = ref.get("id")
+                ref_id = _normalize_ref_id(ref.get("id"))
                 if ref_id is not None:
-                    ref_id = str(ref_id).strip()
                     ref_by_id[ref_id] = ref
                     ref_index[ref_id] = idx
                 doi = _normalize_doi(ref.get("doi"))
@@ -952,10 +970,12 @@ class GraphMapper:
             for cid, ref_item in targets:
                 if ref_item is None:
                     seed = citation_text or cid or json.dumps(item, ensure_ascii=False)
+                    if paper_uid:
+                        seed = f"{paper_uid}|{seed}"
                     ref_key_type, ref_key_value = ("citation_hash", _citation_hash(seed))
                     ref_props = self._build_reference_properties({}, ref_key_type, ref_key_value)
                 else:
-                    ref_key_type, ref_key_value = self._paper_key_from_reference(ref_item)
+                    ref_key_type, ref_key_value = self._paper_key_from_reference(ref_item, paper_uid)
                     ref_props = self._build_reference_properties(ref_item, ref_key_type, ref_key_value)
 
                 ref_node = None
@@ -1006,14 +1026,15 @@ class GraphMapper:
                 for idx, item in enumerate(ref_list):
                     if not isinstance(item, dict):
                         continue
-                    ref_key_type, ref_key_value = self._paper_key_from_reference(item)
+                    ref_key_type, ref_key_value = self._paper_key_from_reference(item, paper_uid)
                     ref_props = self._build_reference_properties(item, ref_key_type, ref_key_value)
                     ref_id = None
                     if not dry_run:
                         ref_id = self._merge_paper_node(ref_key_type, ref_key_value, ref_props)
                     rel_props = {"reference_index": idx}
-                    if item.get("id") is not None:
-                        rel_props["citation_id"] = str(item.get("id"))
+                    norm_id = _normalize_ref_id(item.get("id"))
+                    if norm_id is not None:
+                        rel_props["citation_id"] = str(norm_id)
                     if isinstance(item.get("citation"), str):
                         rel_props["citation_text"] = item.get("citation")
                     if isinstance(item.get("purpose"), str) and item.get("purpose").strip():

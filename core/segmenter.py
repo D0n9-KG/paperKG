@@ -1,4 +1,4 @@
-"""Evidence segmenter that preserves full-text coverage."""
+"""Evidence segmenter with paragraph-level granularity."""
 from __future__ import annotations
 
 import re
@@ -7,207 +7,131 @@ from typing import Dict, List, Tuple
 from core.citations import extract_numeric_citations
 
 
-SECTION_LABELS = (
-    "background",
-    "problem_formulation",
-    "methodology",
-    "results_and_findings",
-    "discussion_and_conclusion",
-    "references",
-    "unknown",
+_HEADING_RE = re.compile(
+    r"^(#+\s+.+|\d+(?:\.\d+)*\s+.+|[IVXLC]+\.?\s+.+|\\section\{.+\})$",
+    re.IGNORECASE,
 )
 
 
-_SECTION_KEYWORDS: Dict[str, List[str]] = {
-    "background": [
-        "introduction",
-        "background",
-        "related work",
-        "literature",
-        "overview",
-        "motivation",
-        "\u5f15\u8a00",
-        "\u80cc\u666f",
-        "\u76f8\u5173\u5de5\u4f5c",
-        "\u6587\u732e\u7efc\u8ff0",
-    ],
-    "problem_formulation": [
-        "problem",
-        "objective",
-        "aim",
-        "goal",
-        "question",
-        "\u7814\u7a76\u95ee\u9898",
-        "\u7814\u7a76\u76ee\u6807",
-        "\u7814\u7a76\u7a7a\u767d",
-        "\u76ee\u7684",
-    ],
-    "methodology": [
-        "method",
-        "methods",
-        "methodology",
-        "materials",
-        "experiment",
-        "simulation",
-        "model",
-        "approach",
-        "\u65b9\u6cd5",
-        "\u6750\u6599",
-        "\u5b9e\u9a8c",
-        "\u4eff\u771f",
-        "\u6a21\u578b",
-    ],
-    "results_and_findings": [
-        "result",
-        "results",
-        "finding",
-        "analysis",
-        "observations",
-        "\u7ed3\u679c",
-        "\u53d1\u73b0",
-        "\u5206\u6790",
-    ],
-    "discussion_and_conclusion": [
-        "discussion",
-        "conclusion",
-        "limitations",
-        "future work",
-        "summary",
-        "\u8ba8\u8bba",
-        "\u7ed3\u8bba",
-        "\u5c40\u9650",
-        "\u672a\u6765\u5de5\u4f5c",
-        "\u603b\u7ed3",
-    ],
-    "references": [
-        "references",
-        "bibliography",
-        "\u53c2\u8003\u6587\u732e",
-    ],
-}
-
-SENTENCE_PUNCT = re.compile(r"[\u3002\uff01\uff1f.!?]")
-
-
-def _normalize_heading(text: str) -> str:
-    return " ".join(text.strip().lower().split())
-
-
-def _guess_section_from_heading(heading: str) -> str:
-    normalized = _normalize_heading(heading)
-    for section, keywords in _SECTION_KEYWORDS.items():
-        for kw in keywords:
-            if kw in normalized:
-                return section
-    return "unknown"
-
-
-def _guess_section_from_text(text: str) -> str:
+def _iter_paragraph_blocks(text: str) -> List[Tuple[int, int, str]]:
+    blocks: List[Tuple[int, int, str]] = []
     if not text:
-        return "unknown"
-    lowered = _normalize_heading(text)
-    scores: Dict[str, int] = {}
-    for section, keywords in _SECTION_KEYWORDS.items():
-        score = 0
-        for kw in keywords:
-            if kw in lowered:
-                score += 1
-        scores[section] = score
-    best_section = max(scores.items(), key=lambda x: x[1])[0]
-    if scores.get(best_section, 0) <= 0:
-        return "unknown"
-    return best_section
-
-
-def _detect_heading_positions(text: str) -> List[Tuple[int, str, str]]:
-    positions: List[Tuple[int, str, str]] = []
+        return blocks
+    lines = text.splitlines(keepends=True)
     offset = 0
-    for line in text.splitlines(keepends=True):
-        stripped = line.strip()
-        if stripped:
-            md_match = re.match(r"^\\s*#+\\s*(.+)$", stripped)
-            if md_match:
-                heading = md_match.group(1)
-                positions.append((offset, _guess_section_from_heading(heading), heading))
-            else:
-                # Numbered headings like "1. Introduction"
-                num_match = re.match(r"^\\s*\\d+\\.?\\s+(.+)$", stripped)
-                if num_match and len(stripped) <= 120:
-                    heading = num_match.group(1)
-                    positions.append((offset, _guess_section_from_heading(heading), heading))
-        offset += len(line)
-    return positions
-
-
-def _section_for_offset(offset: int, headings: List[Tuple[int, str, str]]) -> str:
-    current = "unknown"
-    for pos, section, _heading in headings:
-        if pos <= offset:
-            current = section or "unknown"
+    start = None
+    buffer: List[str] = []
+    for line in lines:
+        if line.strip() == "":
+            if start is not None:
+                block_text = "".join(buffer)
+                blocks.append((start, offset, block_text))
+                buffer = []
+                start = None
         else:
-            break
-    return current
+            if start is None:
+                start = offset
+            buffer.append(line)
+        offset += len(line)
+    if start is not None:
+        blocks.append((start, offset, "".join(buffer)))
+    return blocks
 
 
-def _iter_sentence_spans(text: str) -> List[Tuple[int, int]]:
-    spans: List[Tuple[int, int]] = []
-    if not text:
-        return spans
-    pattern = re.compile(r".*?(?:[。！？.!?]+|\n\n+|$)", re.S)
-    for match in pattern.finditer(text):
-        start, end = match.span()
-        if start == end:
-            continue
-        spans.append((start, end))
-    # Ensure full coverage
-    if spans:
-        last_end = spans[-1][1]
-        if last_end < len(text):
-            spans.append((last_end, len(text)))
-    else:
-        spans.append((0, len(text)))
-    return spans
+def _split_long_block(text: str, start_offset: int, max_chars: int) -> List[Tuple[int, int, str]]:
+    if max_chars <= 0 or len(text) <= max_chars:
+        return [(start_offset, start_offset + len(text), text)]
+    parts: List[Tuple[int, int, str]] = []
+    chunk_start = 0
+    last_break = 0
+    for idx, ch in enumerate(text):
+        if ch in {".", "!", "?", "。", "！", "？", "\n"}:
+            last_break = idx + 1
+        if idx - chunk_start + 1 >= max_chars:
+            cut = last_break if last_break > chunk_start else idx + 1
+            parts.append((start_offset + chunk_start, start_offset + cut, text[chunk_start:cut]))
+            chunk_start = cut
+            last_break = chunk_start
+    if chunk_start < len(text):
+        parts.append((start_offset + chunk_start, start_offset + len(text), text[chunk_start:]))
+    return parts
 
 
-def _should_merge_segment(segment_text: str) -> bool:
-    cleaned = segment_text.strip()
+def _is_heading(text: str) -> bool:
+    cleaned = " ".join(text.strip().split())
     if not cleaned:
+        return False
+    if len(cleaned) > 120:
+        return False
+    if _HEADING_RE.match(cleaned):
         return True
-    if not SENTENCE_PUNCT.search(cleaned):
+    if not re.search(r"[。！？.!?]$", cleaned) and len(cleaned.split()) <= 10:
         return True
     return False
 
 
-def _merge_spans(text: str, spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-    if not spans:
-        return spans
-    merged: List[Tuple[int, int]] = []
-    cur_start, cur_end = spans[0]
-    for next_start, next_end in spans[1:]:
-        current_text = text[cur_start:cur_end]
-        if _should_merge_segment(current_text):
-            cur_end = next_end
+def build_evidence_segments(
+    text: str,
+    min_chars: int = 200,
+    max_chars: int = 1200,
+) -> List[Dict[str, object]]:
+    blocks = _iter_paragraph_blocks(text)
+    chunks: List[Tuple[int, int, str]] = []
+    pending_heading: Tuple[int, int, str] | None = None
+
+    for start, end, block_text in blocks:
+        cleaned = block_text.strip()
+        if not cleaned:
             continue
-        merged.append((cur_start, cur_end))
-        cur_start, cur_end = next_start, next_end
-    merged.append((cur_start, cur_end))
-    return merged
+        if _is_heading(cleaned):
+            if pending_heading:
+                ph_start, _ph_end, ph_text = pending_heading
+                pending_heading = (ph_start, end, ph_text + "\n" + cleaned)
+            else:
+                pending_heading = (start, end, cleaned)
+            continue
+        if pending_heading:
+            ph_start, _ph_end, ph_text = pending_heading
+            cleaned = ph_text + "\n" + cleaned
+            start = ph_start
+            pending_heading = None
 
+        for s_start, s_end, s_text in _split_long_block(cleaned, start, max_chars):
+            chunks.append((s_start, s_end, s_text.strip()))
 
-def build_evidence_segments(text: str) -> List[Dict[str, object]]:
-    headings = _detect_heading_positions(text)
-    spans = _iter_sentence_spans(text)
-    spans = _merge_spans(text, spans)
+    if pending_heading:
+        ph_start, ph_end, ph_text = pending_heading
+        chunks.append((ph_start, ph_end, ph_text.strip()))
+
+    merged: List[Tuple[int, int, str]] = []
+    buffer: Tuple[int, int, str] | None = None
+    for start, end, chunk_text in chunks:
+        if not chunk_text:
+            continue
+        if buffer is None:
+            buffer = (start, end, chunk_text)
+            continue
+        buf_start, buf_end, buf_text = buffer
+        if len(buf_text) < min_chars:
+            buffer = (buf_start, end, buf_text + "\n" + chunk_text)
+        else:
+            merged.append(buffer)
+            buffer = (start, end, chunk_text)
+    if buffer is not None:
+        merged.append(buffer)
+
+    if len(merged) >= 2 and len(merged[-1][2]) < min_chars:
+        last_start, last_end, last_text = merged[-1]
+        prev_start, prev_end, prev_text = merged[-2]
+        merged[-2] = (prev_start, last_end, prev_text + "\n" + last_text)
+        merged.pop()
+
     segments: List[Dict[str, object]] = []
     seg_index = 0
-    for start, end in spans:
-        seg_text = text[start:end]
+    for start, end, seg_text in merged:
         if not seg_text.strip():
             continue
         seg_index += 1
-        section = _section_for_offset(start, headings)
-        if section == "unknown":
-            section = _guess_section_from_text(seg_text)
         citations = extract_numeric_citations(seg_text)
         segments.append(
             {
@@ -216,7 +140,7 @@ def build_evidence_segments(text: str) -> List[Dict[str, object]]:
                 "start": start,
                 "end": end,
                 "text": seg_text,
-                "section": section,
+                "section": "unknown",
                 "citations": citations,
             }
         )

@@ -85,27 +85,24 @@ context:
   evidence_max_segments: 200
   citation_context_chars: 2000
 
+segmenter:
+  min_chars: 200
+  max_chars: 1200
+
 narrative:
-  min_counts:
-    background: 3
-    research_gaps: 1
-    research_questions: 1
-    research_objectives: 1
-    hypotheses: 0
-  evidence_pool:
-    per_section_min: 10
-    per_section_max: 80
+  evidence_scan:
+    max_segments_per_call: 40
+    max_chars: 20000
+    text_max_chars: 800
+  main_picker:
+    max_candidates: 40
+    text_max_chars: 800
   chain_relevance:
     min_score: 1.5
     use_citations: true
     use_distance: true
     max_distance: 8
     fallback_top_k: 0
-  coverage_fill:
-    enable: true
-    per_section_add: 12
-    max_total_add: 80
-    min_segment_chars: 40
 
 logging:
   output_dir: logs
