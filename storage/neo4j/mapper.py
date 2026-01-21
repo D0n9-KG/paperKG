@@ -645,6 +645,7 @@ class GraphMapper:
     def _iter_logic_items_v2(self, narrative: Dict[str, Any]):
         for section, node_type in (
             ("background", "background"),
+            ("state_of_art", "state_of_art"),
             ("research_gaps", "research_gap"),
             ("research_questions", "research_question"),
             ("research_objectives", "research_objective"),
@@ -654,6 +655,25 @@ class GraphMapper:
             if isinstance(items, list):
                 for item in items:
                     yield item, node_type
+                    supports = item.get("supports") if isinstance(item, dict) else None
+                    if isinstance(supports, list):
+                        for support in supports:
+                            yield support, f"{node_type}_support"
+
+        for hub_key, hub_type in (
+            ("background_hub", "background_hub"),
+            ("state_hub", "state_hub"),
+            ("gap_hub", "gap_hub"),
+            ("objective_hub", "objective_hub"),
+            ("hypothesis_hub", "hypothesis_hub"),
+        ):
+            hub = narrative.get(hub_key)
+            if isinstance(hub, dict):
+                yield hub, hub_type
+                supports = hub.get("supports")
+                if isinstance(supports, list):
+                    for support in supports:
+                        yield support, f"{hub_type}_support"
 
         for block_name, main_type, support_type in (
             ("methods", "method_main", "method_support"),
@@ -666,10 +686,98 @@ class GraphMapper:
             main = block.get("main")
             if isinstance(main, dict):
                 yield main, main_type
+                supports = main.get("supports")
+                if isinstance(supports, list):
+                    for item in supports:
+                        yield item, f"{main_type}_support"
             supports = block.get("supports")
             if isinstance(supports, list):
                 for item in supports:
                     yield item, support_type
+                    nested = item.get("supports") if isinstance(item, dict) else None
+                    if isinstance(nested, list):
+                        for sub in nested:
+                            yield sub, f"{support_type}_support"
+
+    def _map_support_relationships_v2(
+        self,
+        research: Dict[str, Any],
+        node_id_map: Dict[str, Optional[str]],
+        dry_run: bool,
+    ) -> None:
+        def _link_support(parent_id: Optional[str], support_item: Any, props: Optional[Dict[str, Any]] = None) -> None:
+            if not isinstance(support_item, dict):
+                return
+            support_id = support_item.get("node_id")
+            if not isinstance(support_id, str):
+                return
+            support_node = node_id_map.get(support_id)
+            if isinstance(parent_id, str):
+                parent_node = node_id_map.get(parent_id)
+                if support_node is not None and parent_node is not None:
+                    self._ensure_relationship(
+                        support_node,
+                        parent_node,
+                        "SUPPORTS",
+                        dry_run,
+                        props or None,
+                    )
+            nested = support_item.get("supports")
+            if isinstance(nested, list):
+                for sub in nested:
+                    _link_support(support_id, sub, props)
+
+        for section in (
+            "background",
+            "state_of_art",
+            "research_gaps",
+            "research_questions",
+            "research_objectives",
+            "hypotheses",
+        ):
+            items = research.get(section)
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                parent_id = item.get("node_id")
+                supports = item.get("supports")
+                if isinstance(supports, list):
+                    for support in supports:
+                        _link_support(parent_id, support, {"section": section})
+
+        for hub_key in (
+            "background_hub",
+            "state_hub",
+            "gap_hub",
+            "objective_hub",
+            "hypothesis_hub",
+        ):
+            hub = research.get(hub_key)
+            if not isinstance(hub, dict):
+                continue
+            parent_id = hub.get("node_id")
+            supports = hub.get("supports")
+            if isinstance(supports, list):
+                for support in supports:
+                    _link_support(parent_id, support, {"section": hub_key})
+
+        for block_name in ("methods", "results", "conclusions"):
+            block = research.get(block_name)
+            if not isinstance(block, dict):
+                continue
+            main = block.get("main")
+            main_id = main.get("node_id") if isinstance(main, dict) else None
+            if isinstance(main, dict):
+                main_supports = main.get("supports")
+                if isinstance(main_supports, list):
+                    for support in main_supports:
+                        _link_support(main_id, support, {"block": block_name, "role": "main"})
+            supports = block.get("supports")
+            if isinstance(supports, list):
+                for item in supports:
+                    _link_support(main_id, item, {"block": block_name, "role": "support"})
 
     def _map_research_narrative_v2(
         self,
@@ -810,39 +918,25 @@ class GraphMapper:
                         self._ensure_relationship(prev_node, logic_node_id, "NEXT", dry_run, {"chain_id": chain_id})
                     prev_node = logic_node_id
 
-        # Map support relationships (supports -> main)
-        for block_name in ("methods", "results", "conclusions"):
-            block = research.get(block_name)
-            if not isinstance(block, dict):
-                continue
-            main = block.get("main")
-            if not isinstance(main, dict):
-                continue
-            main_id = main.get("node_id")
-            if not isinstance(main_id, str):
-                continue
-            main_node = node_id_map.get(main_id)
-            if main_node is None:
-                continue
-            supports = block.get("supports")
-            if not isinstance(supports, list):
-                continue
-            for item in supports:
-                if not isinstance(item, dict):
+        # Map support relationships (supports -> parent)
+        self._map_support_relationships_v2(research, node_id_map, dry_run)
+
+        # Map explicit node relations (hub aggregation + state-gap-objective)
+        relations = research.get("node_relations")
+        if isinstance(relations, list):
+            for rel in relations:
+                if not isinstance(rel, dict):
                     continue
-                support_id = item.get("node_id")
-                if not isinstance(support_id, str):
+                from_id = rel.get("from_id")
+                to_id = rel.get("to_id")
+                rel_type = rel.get("relation_type")
+                if not isinstance(from_id, str) or not isinstance(to_id, str) or not isinstance(rel_type, str):
                     continue
-                support_node = node_id_map.get(support_id)
-                if support_node is None:
+                from_node = node_id_map.get(from_id)
+                to_node = node_id_map.get(to_id)
+                if from_node is None or to_node is None:
                     continue
-                self._ensure_relationship(
-                    support_node,
-                    main_node,
-                    "SUPPORTS",
-                    dry_run,
-                    {"block": block_name},
-                )
+                self._ensure_relationship(from_node, to_node, rel_type, dry_run)
 
     def _parse_citation_ids(self, value: Optional[str]) -> List[str]:
         if not value:

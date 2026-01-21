@@ -744,6 +744,68 @@
                   "additionalProperties": false
                 },
                 "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
               }
             },
             "required": [
@@ -806,6 +868,68 @@
                   "additionalProperties": false
                 },
                 "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
               }
             },
             "required": [
@@ -868,6 +992,68 @@
                   "additionalProperties": false
                 },
                 "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
               }
             },
             "required": [
@@ -930,6 +1116,68 @@
                   "additionalProperties": false
                 },
                 "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
               }
             },
             "required": [
@@ -992,6 +1240,68 @@
                   "additionalProperties": false
                 },
                 "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
               }
             },
             "required": [
@@ -1058,6 +1368,68 @@
                     "additionalProperties": false
                   },
                   "description": "????????"
+                },
+                "supports": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "description": "Logic node id"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "?????????"
+                      },
+                      "evidence_segment_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "description": "????ID??"
+                      },
+                      "citations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "citation_id": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????"
+                            },
+                            "citation_text": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????????"
+                            },
+                            "purpose": {
+                              "type": "string",
+                              "description": "????????????????????"
+                            }
+                          },
+                          "required": [
+                            "purpose"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "????????"
+                      }
+                    },
+                    "required": [
+                      "node_id",
+                      "value",
+                      "evidence_segment_ids"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "????"
                 }
               },
               "required": [
@@ -1118,6 +1490,68 @@
                       "additionalProperties": false
                     },
                     "description": "????????"
+                  },
+                  "supports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "node_id": {
+                          "type": "string",
+                          "description": "Logic node id"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "?????????"
+                        },
+                        "evidence_segment_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "minItems": 1,
+                          "description": "????ID??"
+                        },
+                        "citations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "citation_id": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????"
+                              },
+                              "citation_text": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????????"
+                              },
+                              "purpose": {
+                                "type": "string",
+                                "description": "????????????????????"
+                              }
+                            },
+                            "required": [
+                              "purpose"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "????????"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "value",
+                        "evidence_segment_ids"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????"
                   }
                 },
                 "required": [
@@ -1191,6 +1625,68 @@
                     "additionalProperties": false
                   },
                   "description": "????????"
+                },
+                "supports": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "description": "Logic node id"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "?????????"
+                      },
+                      "evidence_segment_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "description": "????ID??"
+                      },
+                      "citations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "citation_id": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????"
+                            },
+                            "citation_text": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????????"
+                            },
+                            "purpose": {
+                              "type": "string",
+                              "description": "????????????????????"
+                            }
+                          },
+                          "required": [
+                            "purpose"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "????????"
+                      }
+                    },
+                    "required": [
+                      "node_id",
+                      "value",
+                      "evidence_segment_ids"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "????"
                 }
               },
               "required": [
@@ -1251,6 +1747,68 @@
                       "additionalProperties": false
                     },
                     "description": "????????"
+                  },
+                  "supports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "node_id": {
+                          "type": "string",
+                          "description": "Logic node id"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "?????????"
+                        },
+                        "evidence_segment_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "minItems": 1,
+                          "description": "????ID??"
+                        },
+                        "citations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "citation_id": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????"
+                              },
+                              "citation_text": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????????"
+                              },
+                              "purpose": {
+                                "type": "string",
+                                "description": "????????????????????"
+                              }
+                            },
+                            "required": [
+                              "purpose"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "????????"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "value",
+                        "evidence_segment_ids"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????"
                   }
                 },
                 "required": [
@@ -1324,6 +1882,68 @@
                     "additionalProperties": false
                   },
                   "description": "????????"
+                },
+                "supports": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "description": "Logic node id"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "?????????"
+                      },
+                      "evidence_segment_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "description": "????ID??"
+                      },
+                      "citations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "citation_id": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????"
+                            },
+                            "citation_text": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "??????????"
+                            },
+                            "purpose": {
+                              "type": "string",
+                              "description": "????????????????????"
+                            }
+                          },
+                          "required": [
+                            "purpose"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "????????"
+                      }
+                    },
+                    "required": [
+                      "node_id",
+                      "value",
+                      "evidence_segment_ids"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "????"
                 }
               },
               "required": [
@@ -1332,6 +1952,356 @@
                 "evidence_segment_ids"
               ],
               "additionalProperties": false
+            },
+            "supports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "node_id": {
+                    "type": "string",
+                    "description": "Logic node id"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "?????????"
+                  },
+                  "evidence_segment_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "????ID??"
+                  },
+                  "citations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "citation_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????"
+                        },
+                        "citation_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????????"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "description": "????????????????????"
+                        }
+                      },
+                      "required": [
+                        "purpose"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????????"
+                  },
+                  "supports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "node_id": {
+                          "type": "string",
+                          "description": "Logic node id"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "?????????"
+                        },
+                        "evidence_segment_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "minItems": 1,
+                          "description": "????ID??"
+                        },
+                        "citations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "citation_id": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????"
+                              },
+                              "citation_text": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "??????????"
+                              },
+                              "purpose": {
+                                "type": "string",
+                                "description": "????????????????????"
+                              }
+                            },
+                            "required": [
+                              "purpose"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "????????"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "value",
+                        "evidence_segment_ids"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "value",
+                  "evidence_segment_ids"
+                ],
+                "additionalProperties": false
+              },
+              "description": "???????"
+            }
+          },
+          "required": [
+            "main",
+            "supports"
+          ],
+          "additionalProperties": false
+        },
+        "logic_chains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "chain_id": {
+                "type": "string",
+                "description": "???ID"
+              },
+              "question_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "hypothesis_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "objective_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "chain_id",
+              "steps"
+            ],
+            "additionalProperties": false
+          },
+          "description": "?????/??????????"
+        },
+        "state_of_art": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "description": "Logic node id"
+              },
+              "value": {
+                "type": "string",
+                "description": "?????????"
+              },
+              "evidence_segment_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "????ID??"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "citation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "??????"
+                    },
+                    "citation_text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "??????????"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "description": "????????????????????"
+                    }
+                  },
+                  "required": [
+                    "purpose"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????????"
+              },
+              "supports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "node_id": {
+                      "type": "string",
+                      "description": "Logic node id"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "?????????"
+                    },
+                    "evidence_segment_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "????ID??"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "citation_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????"
+                          },
+                          "citation_text": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "??????????"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "????????????????????"
+                          }
+                        },
+                        "required": [
+                          "purpose"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "????????"
+                    }
+                  },
+                  "required": [
+                    "node_id",
+                    "value",
+                    "evidence_segment_ids"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "????"
+              }
+            },
+            "required": [
+              "node_id",
+              "value",
+              "evidence_segment_ids"
+            ],
+            "additionalProperties": false
+          },
+          "description": "????"
+        },
+        "background_hub": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "description": "Logic node id"
+            },
+            "value": {
+              "type": "string",
+              "description": "?????????"
+            },
+            "evidence_segment_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "????ID??"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????"
+                  },
+                  "citation_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????????"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "????????????????????"
+                  }
+                },
+                "required": [
+                  "purpose"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????????"
             },
             "supports": {
               "type": "array",
@@ -1393,68 +2363,555 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "???????"
+              "description": "????"
             }
           },
           "required": [
-            "main",
-            "supports"
+            "node_id",
+            "value",
+            "evidence_segment_ids"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "????"
         },
-        "logic_chains": {
+        "state_hub": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "description": "Logic node id"
+            },
+            "value": {
+              "type": "string",
+              "description": "?????????"
+            },
+            "evidence_segment_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "????ID??"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????"
+                  },
+                  "citation_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????????"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "????????????????????"
+                  }
+                },
+                "required": [
+                  "purpose"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????????"
+            },
+            "supports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "node_id": {
+                    "type": "string",
+                    "description": "Logic node id"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "?????????"
+                  },
+                  "evidence_segment_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "????ID??"
+                  },
+                  "citations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "citation_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????"
+                        },
+                        "citation_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????????"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "description": "????????????????????"
+                        }
+                      },
+                      "required": [
+                        "purpose"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????????"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "value",
+                  "evidence_segment_ids"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????"
+            }
+          },
+          "required": [
+            "node_id",
+            "value",
+            "evidence_segment_ids"
+          ],
+          "additionalProperties": false,
+          "description": "????"
+        },
+        "gap_hub": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "description": "Logic node id"
+            },
+            "value": {
+              "type": "string",
+              "description": "?????????"
+            },
+            "evidence_segment_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "????ID??"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????"
+                  },
+                  "citation_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????????"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "????????????????????"
+                  }
+                },
+                "required": [
+                  "purpose"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????????"
+            },
+            "supports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "node_id": {
+                    "type": "string",
+                    "description": "Logic node id"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "?????????"
+                  },
+                  "evidence_segment_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "????ID??"
+                  },
+                  "citations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "citation_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????"
+                        },
+                        "citation_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????????"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "description": "????????????????????"
+                        }
+                      },
+                      "required": [
+                        "purpose"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????????"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "value",
+                  "evidence_segment_ids"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????"
+            }
+          },
+          "required": [
+            "node_id",
+            "value",
+            "evidence_segment_ids"
+          ],
+          "additionalProperties": false,
+          "description": "????"
+        },
+        "objective_hub": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "description": "Logic node id"
+            },
+            "value": {
+              "type": "string",
+              "description": "?????????"
+            },
+            "evidence_segment_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "????ID??"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????"
+                  },
+                  "citation_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????????"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "????????????????????"
+                  }
+                },
+                "required": [
+                  "purpose"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????????"
+            },
+            "supports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "node_id": {
+                    "type": "string",
+                    "description": "Logic node id"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "?????????"
+                  },
+                  "evidence_segment_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "????ID??"
+                  },
+                  "citations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "citation_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????"
+                        },
+                        "citation_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????????"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "description": "????????????????????"
+                        }
+                      },
+                      "required": [
+                        "purpose"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????????"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "value",
+                  "evidence_segment_ids"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????"
+            }
+          },
+          "required": [
+            "node_id",
+            "value",
+            "evidence_segment_ids"
+          ],
+          "additionalProperties": false,
+          "description": "????"
+        },
+        "hypothesis_hub": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "description": "Logic node id"
+            },
+            "value": {
+              "type": "string",
+              "description": "?????????"
+            },
+            "evidence_segment_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "????ID??"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????"
+                  },
+                  "citation_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "??????????"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "????????????????????"
+                  }
+                },
+                "required": [
+                  "purpose"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????????"
+            },
+            "supports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "node_id": {
+                    "type": "string",
+                    "description": "Logic node id"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "?????????"
+                  },
+                  "evidence_segment_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "????ID??"
+                  },
+                  "citations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "citation_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????"
+                        },
+                        "citation_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "??????????"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "description": "????????????????????"
+                        }
+                      },
+                      "required": [
+                        "purpose"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "????????"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "value",
+                  "evidence_segment_ids"
+                ],
+                "additionalProperties": false
+              },
+              "description": "????"
+            }
+          },
+          "required": [
+            "node_id",
+            "value",
+            "evidence_segment_ids"
+          ],
+          "additionalProperties": false,
+          "description": "????"
+        },
+        "node_relations": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "chain_id": {
-                "type": "string",
-                "description": "???ID"
+              "from_id": {
+                "type": "string"
               },
-              "question_ids": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "to_id": {
+                "type": "string"
               },
-              "hypothesis_ids": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "objective_ids": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "steps": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "relation_type": {
+                "type": "string"
               }
             },
             "required": [
-              "chain_id",
-              "steps"
+              "from_id",
+              "to_id",
+              "relation_type"
             ],
             "additionalProperties": false
           },
-          "description": "?????/??????????"
+          "description": "??????"
         }
       },
       "required": [
+        "gap_hub",
+        "logic_chains",
         "background",
-        "research_gaps",
-        "research_questions",
-        "research_objectives",
-        "hypotheses",
         "methods",
+        "objective_hub",
+        "research_gaps",
+        "research_objectives",
+        "state_of_art",
+        "hypothesis_hub",
+        "state_hub",
+        "background_hub",
         "results",
+        "research_questions",
         "conclusions",
-        "logic_chains"
+        "hypotheses",
+        "node_relations"
       ],
       "additionalProperties": false
     },

@@ -28,6 +28,7 @@ from llm.prompts import (
     EVIDENCE_SCAN_PROMPT,
     MAIN_ID_PICK_PROMPT,
     RESEARCH_NARRATIVE_SYNTH_PROMPT,
+    STATE_GAP_OBJECTIVE_LINK_PROMPT,
 )
 from llm.prompt_builder import PromptBuilder
 from llm.providers.factory import build_client
@@ -295,6 +296,7 @@ class PaperKGExtractor:
         # List sections backfill
         list_mapping = {
             "background": "background_ids",
+            "state_of_art": "state_of_art_ids",
             "research_gaps": "research_gap_ids",
             "research_questions": "research_question_ids",
             "research_objectives": "objective_ids",
@@ -360,6 +362,7 @@ class PaperKGExtractor:
     def _selection_keys(self) -> List[str]:
         return [
             "background_ids",
+            "state_of_art_ids",
             "research_gap_ids",
             "research_question_ids",
             "objective_ids",
@@ -763,14 +766,21 @@ class PaperKGExtractor:
             return {}
         defaults = {
             "background": [],
+            "state_of_art": [],
             "research_gaps": [],
             "research_questions": [],
             "research_objectives": [],
             "hypotheses": [],
+            "background_hub": None,
+            "state_hub": None,
+            "gap_hub": None,
+            "objective_hub": None,
+            "hypothesis_hub": None,
             "methods": {"main": None, "supports": []},
             "results": {"main": None, "supports": []},
             "conclusions": {"main": None, "supports": []},
             "logic_chains": [],
+            "node_relations": [],
         }
         for key, default in defaults.items():
             if key not in narrative or not isinstance(narrative.get(key), type(default)):
@@ -1186,6 +1196,7 @@ class PaperKGExtractor:
             return
         list_sections = [
             ("background", "B"),
+            ("state_of_art", "SA"),
             ("research_gaps", "G"),
             ("research_questions", "Q"),
             ("research_objectives", "O"),
@@ -1196,6 +1207,26 @@ class PaperKGExtractor:
             if isinstance(items, list):
                 for idx, item in enumerate(items):
                     yield f"{section}[{idx}]", item, prefix
+                    supports = item.get("supports") if isinstance(item, dict) else None
+                    if isinstance(supports, list):
+                        for sidx, support in enumerate(supports):
+                            yield f"{section}[{idx}].supports[{sidx}]", support, f"{prefix}S"
+
+        hub_sections = [
+            ("background_hub", "BH"),
+            ("state_hub", "SH"),
+            ("gap_hub", "GH"),
+            ("objective_hub", "OH"),
+            ("hypothesis_hub", "HH"),
+        ]
+        for section, prefix in hub_sections:
+            item = narrative.get(section)
+            if isinstance(item, dict):
+                yield section, item, prefix
+                supports = item.get("supports")
+                if isinstance(supports, list):
+                    for sidx, support in enumerate(supports):
+                        yield f"{section}.supports[{sidx}]", support, f"{prefix}S"
 
         for block_name, prefix_main, prefix_support in (
             ("methods", "M", "MS"),
@@ -1208,10 +1239,18 @@ class PaperKGExtractor:
             main = block.get("main")
             if isinstance(main, dict):
                 yield f"{block_name}.main", main, prefix_main
+                supports = main.get("supports")
+                if isinstance(supports, list):
+                    for sidx, support in enumerate(supports):
+                        yield f"{block_name}.main.supports[{sidx}]", support, f"{prefix_main}S"
             supports = block.get("supports")
             if isinstance(supports, list):
                 for idx, item in enumerate(supports):
                     yield f"{block_name}.supports[{idx}]", item, prefix_support
+                    nested_supports = item.get("supports") if isinstance(item, dict) else None
+                    if isinstance(nested_supports, list):
+                        for sidx, support in enumerate(nested_supports):
+                            yield f"{block_name}.supports[{idx}].supports[{sidx}]", support, f"{prefix_support}S"
 
     def _normalize_logic_item(
         self,
@@ -1285,10 +1324,50 @@ class PaperKGExtractor:
             return
         narrative = self._ensure_research_narrative_sections(narrative)
         used_ids: set = set()
-        counters = {"B": 1, "G": 1, "Q": 1, "O": 1, "H": 1, "M": 1, "MS": 1, "R": 1, "RS": 1, "C": 1, "CS": 1}
+        counters = {
+            "B": 1,
+            "BS": 1,
+            "SA": 1,
+            "SAS": 1,
+            "G": 1,
+            "GS": 1,
+            "Q": 1,
+            "QS": 1,
+            "O": 1,
+            "OS": 1,
+            "H": 1,
+            "HS": 1,
+            "BH": 1,
+            "BHS": 1,
+            "SH": 1,
+            "SHS": 1,
+            "GH": 1,
+            "GHS": 1,
+            "OH": 1,
+            "OHS": 1,
+            "HH": 1,
+            "HHS": 1,
+            "M": 1,
+            "MS": 1,
+            "MSS": 1,
+            "R": 1,
+            "RS": 1,
+            "RSS": 1,
+            "C": 1,
+            "CS": 1,
+            "CSS": 1,
+        }
 
-        # Normalize list sections
-        for section, prefix in (("background", "B"), ("research_gaps", "G"), ("research_questions", "Q"), ("research_objectives", "O"), ("hypotheses", "H")):
+        # Normalize list sections (with optional supports)
+        list_sections = (
+            ("background", "B", "BS"),
+            ("state_of_art", "SA", "SAS"),
+            ("research_gaps", "G", "GS"),
+            ("research_questions", "Q", "QS"),
+            ("research_objectives", "O", "OS"),
+            ("hypotheses", "H", "HS"),
+        )
+        for section, prefix, support_prefix in list_sections:
             items = narrative.get(section, [])
             normalized = []
             if isinstance(items, list):
@@ -1301,8 +1380,24 @@ class PaperKGExtractor:
                         used_ids,
                     )
                     if normalized_item:
-                        normalized.append(normalized_item)
                         counters[prefix] += 1
+                        supports = item.get("supports") if isinstance(item, dict) else None
+                        if isinstance(supports, list):
+                            normalized_supports = []
+                            for support in supports:
+                                normalized_support = self._normalize_logic_item(
+                                    support,
+                                    support_prefix,
+                                    counters[support_prefix],
+                                    segments_by_id,
+                                    used_ids,
+                                )
+                                if normalized_support:
+                                    normalized_supports.append(normalized_support)
+                                    counters[support_prefix] += 1
+                            if normalized_supports:
+                                normalized_item["supports"] = normalized_supports
+                        normalized.append(normalized_item)
             narrative[section] = normalized
 
         # Ensure research_objectives exist; fallback to research_questions when missing
@@ -1321,6 +1416,71 @@ class PaperKGExtractor:
                 counters["O"] += 1
                 fallback_objectives.append(obj_item)
             narrative["research_objectives"] = fallback_objectives
+
+        def _build_hub_from_list(list_key: str, hub_key: str, label: str, prefix: str) -> None:
+            if narrative.get(hub_key) is not None:
+                return
+            items = narrative.get(list_key)
+            if not isinstance(items, list) or not items:
+                return
+            first = items[0] if isinstance(items[0], dict) else None
+            if not first:
+                return
+            evid = first.get("evidence_segment_ids") if isinstance(first.get("evidence_segment_ids"), list) else []
+            if not evid:
+                return
+            narrative[hub_key] = {
+                "node_id": f"{prefix}{counters[prefix]}",
+                "value": label,
+                "evidence_segment_ids": evid[:3],
+                "citations": [],
+            }
+            counters[prefix] += 1
+
+        _build_hub_from_list("background", "background_hub", "研究背景汇总节点", "BH")
+        _build_hub_from_list("state_of_art", "state_hub", "研究现状汇总节点", "SH")
+        _build_hub_from_list("research_gaps", "gap_hub", "研究缺口汇总节点", "GH")
+        _build_hub_from_list("research_objectives", "objective_hub", "研究目的汇总节点", "OH")
+        _build_hub_from_list("hypotheses", "hypothesis_hub", "研究假设汇总节点", "HH")
+
+        # Normalize hub nodes (with optional supports)
+        hub_sections = (
+            ("background_hub", "BH", "BHS"),
+            ("state_hub", "SH", "SHS"),
+            ("gap_hub", "GH", "GHS"),
+            ("objective_hub", "OH", "OHS"),
+            ("hypothesis_hub", "HH", "HHS"),
+        )
+        for section, prefix, support_prefix in hub_sections:
+            item = narrative.get(section)
+            normalized_item = None
+            if isinstance(item, dict):
+                normalized_item = self._normalize_logic_item(
+                    item,
+                    prefix,
+                    counters[prefix],
+                    segments_by_id,
+                    used_ids,
+                )
+                if normalized_item:
+                    counters[prefix] += 1
+                    supports = item.get("supports")
+                    if isinstance(supports, list):
+                        normalized_supports = []
+                        for support in supports:
+                            normalized_support = self._normalize_logic_item(
+                                support,
+                                support_prefix,
+                                counters[support_prefix],
+                                segments_by_id,
+                                used_ids,
+                            )
+                            if normalized_support:
+                                normalized_supports.append(normalized_support)
+                                counters[support_prefix] += 1
+                        if normalized_supports:
+                            normalized_item["supports"] = normalized_supports
+            narrative[section] = normalized_item
 
         # Normalize main/support blocks
         for block_name, prefix_main, prefix_support in (
@@ -1343,6 +1503,22 @@ class PaperKGExtractor:
                 )
                 if normalized_main:
                     counters[prefix_main] += 1
+                    main_supports = main.get("supports")
+                    if isinstance(main_supports, list):
+                        normalized_supports = []
+                        for support in main_supports:
+                            normalized_support = self._normalize_logic_item(
+                                support,
+                                f"{prefix_main}S",
+                                counters[f"{prefix_main}S"],
+                                segments_by_id,
+                                used_ids,
+                            )
+                            if normalized_support:
+                                normalized_supports.append(normalized_support)
+                                counters[f"{prefix_main}S"] += 1
+                        if normalized_supports:
+                            normalized_main["supports"] = normalized_supports
             supports = block.get("supports")
             normalized_supports = []
             if isinstance(supports, list):
@@ -1357,199 +1533,202 @@ class PaperKGExtractor:
                     if normalized_item:
                         normalized_supports.append(normalized_item)
                         counters[prefix_support] += 1
+                        nested_supports = item.get("supports") if isinstance(item, dict) else None
+                        if isinstance(nested_supports, list):
+                            nested_normalized = []
+                            nested_prefix = f"{prefix_support}S"
+                            for support in nested_supports:
+                                normalized_nested = self._normalize_logic_item(
+                                    support,
+                                    nested_prefix,
+                                    counters[nested_prefix],
+                                    segments_by_id,
+                                    used_ids,
+                                )
+                                if normalized_nested:
+                                    nested_normalized.append(normalized_nested)
+                                    counters[nested_prefix] += 1
+                            if nested_normalized:
+                                normalized_item["supports"] = nested_normalized
             narrative[block_name] = {"main": normalized_main, "supports": normalized_supports}
 
         self._normalize_logic_chains(narrative, used_ids)
         logic_chain["research_narrative"] = narrative
+
+    async def _link_state_gap_objective(self, narrative: Dict[str, Any]) -> List[Dict[str, str]]:
+        states = narrative.get("state_of_art") if isinstance(narrative.get("state_of_art"), list) else []
+        gaps = narrative.get("research_gaps") if isinstance(narrative.get("research_gaps"), list) else []
+        objectives = narrative.get("research_objectives") if isinstance(narrative.get("research_objectives"), list) else []
+
+        def _pack(items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+            packed: List[Dict[str, str]] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                node_id = item.get("node_id")
+                value = item.get("value")
+                if isinstance(node_id, str) and isinstance(value, str) and value.strip():
+                    packed.append({"id": node_id, "text": value.strip()})
+            return packed
+
+        payload = json.dumps(
+            {
+                "states": _pack(states),
+                "gaps": _pack(gaps),
+                "objectives": _pack(objectives),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        if payload.strip() == "{}":
+            return []
+        try:
+            parsed = await self._call_agent(
+                "research_narrative_selector",
+                STATE_GAP_OBJECTIVE_LINK_PROMPT,
+                payload,
+                strict_json=True,
+            )
+        except Exception as exc:
+            logger.warning(f"State-gap-objective linking failed: {exc}")
+            parsed = {}
+
+        relations: List[Dict[str, str]] = []
+        if isinstance(parsed, dict):
+            state_gap = parsed.get("state_gap_links", [])
+            if isinstance(state_gap, list):
+                for link in state_gap:
+                    if not isinstance(link, dict):
+                        continue
+                    sid = link.get("state_id")
+                    gid = link.get("gap_id")
+                    if isinstance(sid, str) and isinstance(gid, str):
+                        relations.append({"from_id": sid, "to_id": gid, "relation_type": "LEADS_TO_GAP"})
+            gap_obj = parsed.get("gap_objective_links", [])
+            if isinstance(gap_obj, list):
+                for link in gap_obj:
+                    if not isinstance(link, dict):
+                        continue
+                    gid = link.get("gap_id")
+                    oid = link.get("objective_id")
+                    if isinstance(gid, str) and isinstance(oid, str):
+                        relations.append({"from_id": gid, "to_id": oid, "relation_type": "MOTIVATES_OBJECTIVE"})
+        return relations
+
+    async def _augment_node_relations(self, logic_chain: Dict[str, Any]) -> None:
+        narrative = logic_chain.get("research_narrative")
+        if not isinstance(narrative, dict):
+            return
+        relations: List[Dict[str, str]] = []
+
+        def _hub_links(list_key: str, hub_key: str) -> None:
+            items = narrative.get(list_key)
+            hub = narrative.get(hub_key)
+            if not isinstance(items, list) or not isinstance(hub, dict):
+                return
+            hub_id = hub.get("node_id")
+            if not isinstance(hub_id, str):
+                return
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                nid = item.get("node_id")
+                if isinstance(nid, str):
+                    relations.append({"from_id": nid, "to_id": hub_id, "relation_type": "AGGREGATES_TO"})
+
+        _hub_links("background", "background_hub")
+        _hub_links("state_of_art", "state_hub")
+        _hub_links("research_gaps", "gap_hub")
+        _hub_links("research_objectives", "objective_hub")
+        _hub_links("hypotheses", "hypothesis_hub")
+
+        relations.extend(await self._link_state_gap_objective(narrative))
+
+        # Deduplicate
+        dedup = []
+        seen = set()
+        for rel in relations:
+            key = (rel.get("from_id"), rel.get("to_id"), rel.get("relation_type"))
+            if key in seen or not all(key):
+                continue
+            seen.add(key)
+            dedup.append(rel)
+        narrative["node_relations"] = dedup
 
     def _normalize_logic_chains(self, narrative: Dict[str, Any], node_ids: set) -> None:
         # Always rebuild canonical chains to ensure main-only steps and multi-chain split
         narrative["logic_chains"] = self._build_default_chains(narrative)
 
     def _build_default_chains(self, narrative: Dict[str, Any]) -> List[Dict[str, Any]]:
-        def _min_segment_index(item: Dict[str, Any]) -> Optional[int]:
-            evid = item.get("evidence_segment_ids")
-            if not isinstance(evid, list):
-                return None
-            indices = []
-            for sid in evid:
-                if not isinstance(sid, str):
-                    continue
-                if sid.startswith("S") and sid[1:].isdigit():
-                    indices.append(int(sid[1:]))
-            return min(indices) if indices else None
+        def _node_id(obj: Any) -> Optional[str]:
+            if isinstance(obj, dict):
+                nid = obj.get("node_id")
+                if isinstance(nid, str):
+                    return nid
+            return None
 
-        def _citation_set(item: Dict[str, Any]) -> set:
-            cites = item.get("citations")
-            if not isinstance(cites, list):
-                return set()
-            ids = set()
-            for cite in cites:
-                if not isinstance(cite, dict):
-                    continue
-                cid = cite.get("citation_id")
-                if cid is None:
-                    continue
-                cid = str(cid).strip()
-                if cid:
-                    ids.add(cid)
+        def _list_node_ids(items: Any) -> List[str]:
+            ids: List[str] = []
+            if isinstance(items, list):
+                for item in items:
+                    nid = _node_id(item)
+                    if nid:
+                        ids.append(nid)
             return ids
 
-        def _char_ngrams(text: str, n: int = 2) -> set:
-            if not isinstance(text, str):
-                return set()
-            cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", "", text.lower())
-            if len(cleaned) < n:
-                return set()
-            return {cleaned[i:i + n] for i in range(len(cleaned) - n + 1)}
+        background_hub = _node_id(narrative.get("background_hub"))
+        state_hub = _node_id(narrative.get("state_hub"))
+        gap_hub = _node_id(narrative.get("gap_hub"))
+        objective_hub = _node_id(narrative.get("objective_hub"))
+        hypothesis_hub = _node_id(narrative.get("hypothesis_hub"))
 
-        def _jaccard(a: set, b: set) -> float:
-            if not a or not b:
-                return 0.0
-            inter = a.intersection(b)
-            union = a.union(b)
-            return len(inter) / len(union) if union else 0.0
+        method_id = _node_id(narrative.get("methods", {}).get("main") if isinstance(narrative.get("methods"), dict) else None)
+        result_id = _node_id(narrative.get("results", {}).get("main") if isinstance(narrative.get("results"), dict) else None)
+        conclusion_id = _node_id(narrative.get("conclusions", {}).get("main") if isinstance(narrative.get("conclusions"), dict) else None)
 
-        def _related_score(candidate: Dict[str, Any], anchor: Dict[str, Any], cfg: Dict[str, Any]) -> float:
-            c_text = candidate.get("value", "")
-            a_text = anchor.get("value", "")
-            jaccard = _jaccard(_char_ngrams(c_text), _char_ngrams(a_text))
-            cite_overlap = 0
-            if cfg.get("use_citations", True):
-                c_cites = _citation_set(candidate)
-                a_cites = _citation_set(anchor)
-                cite_overlap = len(c_cites.intersection(a_cites))
-            distance_bonus = 0.0
-            if cfg.get("use_distance", True):
-                c_idx = _min_segment_index(candidate)
-                a_idx = _min_segment_index(anchor)
-                if c_idx is not None and a_idx is not None:
-                    dist = abs(c_idx - a_idx)
-                    max_dist = int(cfg.get("max_distance", 8))
-                    if max_dist > 0 and dist <= max_dist:
-                        distance_bonus = (max_dist - dist + 1) / max_dist
-            return jaccard * 10.0 + cite_overlap * 2.0 + distance_bonus
+        base_steps = [
+            background_hub,
+            state_hub,
+            gap_hub,
+            objective_hub,
+            hypothesis_hub,
+            method_id,
+            result_id,
+            conclusion_id,
+        ]
+        base_steps = [sid for sid in base_steps if isinstance(sid, str)]
 
-        def _filter_related(items: List[Dict[str, Any]], anchor: Dict[str, Any], cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
-            min_score = float(cfg.get("min_score", 1.5))
-            scored: List[Tuple[float, Dict[str, Any]]] = []
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                scored.append((_related_score(item, anchor, cfg), item))
-            related = [item for score, item in scored if score >= min_score]
-            if related:
-                return related
-            fallback_k = int(cfg.get("fallback_top_k", 0))
-            if fallback_k > 0 and scored:
-                scored.sort(key=lambda x: x[0], reverse=True)
-                return [item for _score, item in scored[:fallback_k]]
-            return []
-
-        narrative_cfg = self.config.get("narrative", {}) if isinstance(self.config.get("narrative", {}), dict) else {}
-        rel_cfg = narrative_cfg.get("chain_relevance", {}) if isinstance(narrative_cfg.get("chain_relevance", {}), dict) else {}
-
-        background_items = narrative.get("background", []) if isinstance(narrative.get("background"), list) else []
-        gap_items = narrative.get("research_gaps", []) if isinstance(narrative.get("research_gaps"), list) else []
-        objective_items = narrative.get("research_objectives", []) if isinstance(narrative.get("research_objectives"), list) else []
-
-        method_main = narrative.get("methods", {}).get("main") if isinstance(narrative.get("methods"), dict) else None
-        result_main = narrative.get("results", {}).get("main") if isinstance(narrative.get("results"), dict) else None
-        conclusion_main = narrative.get("conclusions", {}).get("main") if isinstance(narrative.get("conclusions"), dict) else None
-        method_id = method_main.get("node_id") if isinstance(method_main, dict) else None
-        result_id = result_main.get("node_id") if isinstance(result_main, dict) else None
-        conclusion_id = conclusion_main.get("node_id") if isinstance(conclusion_main, dict) else None
+        objective_items = narrative.get("research_objectives") if isinstance(narrative.get("research_objectives"), list) else []
+        question_ids = _list_node_ids(narrative.get("research_questions"))
+        hypothesis_ids = _list_node_ids(narrative.get("hypotheses"))
 
         chains: List[Dict[str, Any]] = []
-        questions = narrative.get("research_questions", []) if isinstance(narrative.get("research_questions"), list) else []
-        hypotheses = narrative.get("hypotheses", []) if isinstance(narrative.get("hypotheses"), list) else []
-
-        def _build_steps(anchor_id: Optional[str], anchor_item: Optional[Dict[str, Any]]) -> List[str]:
-            steps: List[str] = []
-            selected_background = background_items
-            selected_gaps = gap_items
-            if anchor_item:
-                selected_background = _filter_related(background_items, anchor_item, rel_cfg)
-                selected_gaps = _filter_related(gap_items, anchor_item, rel_cfg)
-                if not selected_background and background_items:
-                    selected_background = background_items[:1]
-                if not selected_gaps and gap_items:
-                    selected_gaps = gap_items[:1]
-            selected_background = sorted(
-                [item for item in selected_background if isinstance(item, dict) and isinstance(item.get("node_id"), str)],
-                key=lambda x: (_min_segment_index(x) or 0, x.get("node_id")),
-            )
-            selected_gaps = sorted(
-                [item for item in selected_gaps if isinstance(item, dict) and isinstance(item.get("node_id"), str)],
-                key=lambda x: (_min_segment_index(x) or 0, x.get("node_id")),
-            )
-            steps.extend([item.get("node_id") for item in selected_background if isinstance(item.get("node_id"), str)])
-            steps.extend([item.get("node_id") for item in selected_gaps if isinstance(item.get("node_id"), str)])
-            if isinstance(anchor_id, str):
-                steps.append(anchor_id)
-            if isinstance(method_id, str):
-                steps.append(method_id)
-            if isinstance(result_id, str):
-                steps.append(result_id)
-            if isinstance(conclusion_id, str):
-                steps.append(conclusion_id)
-            seen = set()
-            ordered = []
-            for sid in steps:
-                if sid in seen:
-                    continue
-                seen.add(sid)
-                ordered.append(sid)
-            return ordered
-
-        # Use research objectives as primary anchors; fallback to research questions if none
-        anchors = objective_items if objective_items else questions
-        anchor_key = "objective_ids" if objective_items else "question_ids"
-
-        if not anchors and not hypotheses:
-            steps = _build_steps(None, None)
-            if steps:
-                chains.append({"chain_id": "C1", "objective_ids": [], "question_ids": [], "hypothesis_ids": [], "steps": steps})
-            return chains
-
-        chain_idx = 1
-        for item in anchors:
-            node_id = item.get("node_id") if isinstance(item, dict) else None
-            if not isinstance(node_id, str):
-                continue
-            steps = _build_steps(node_id, item if isinstance(item, dict) else None)
-            if not steps:
-                continue
-            chains.append(
-                {
-                    "chain_id": f"C{chain_idx}",
-                    "objective_ids": [node_id] if anchor_key == "objective_ids" else [node_id],
-                    "question_ids": [node_id] if anchor_key == "question_ids" else [],
-                    "hypothesis_ids": [],
-                    "steps": steps,
-                }
-            )
-            chain_idx += 1
-
-        # If there are hypotheses, optionally add chains for them when no objectives/questions exist
-        if not objective_items and not questions and hypotheses:
-            for item in hypotheses:
-                node_id = item.get("node_id") if isinstance(item, dict) else None
-                if not isinstance(node_id, str):
-                    continue
-                steps = _build_steps(node_id, item if isinstance(item, dict) else None)
-                if not steps:
+        if objective_items:
+            chain_idx = 1
+            for obj in objective_items:
+                obj_id = _node_id(obj)
+                if not obj_id:
                     continue
                 chains.append(
                     {
                         "chain_id": f"C{chain_idx}",
-                        "objective_ids": [node_id],
-                        "question_ids": [],
-                        "hypothesis_ids": [node_id],
-                        "steps": steps,
+                        "objective_ids": [obj_id],
+                        "question_ids": question_ids,
+                        "hypothesis_ids": hypothesis_ids,
+                        "steps": base_steps,
                     }
                 )
                 chain_idx += 1
+        else:
+            chains.append(
+                {
+                    "chain_id": "C1",
+                    "objective_ids": [],
+                    "question_ids": question_ids,
+                    "hypothesis_ids": hypothesis_ids,
+                    "steps": base_steps,
+                }
+            )
         return chains
 
     def _collect_evidence_ids_from_narrative(self, narrative: Dict[str, Any]) -> List[str]:
@@ -1809,6 +1988,7 @@ class PaperKGExtractor:
         segments_by_id = {seg.get("id"): seg for seg in evidence_segments if isinstance(seg, dict) and seg.get("id")}
         self._normalize_research_narrative(logic_chain, segments_by_id)
         self._normalize_metadata_lists(logic_chain)
+        await self._augment_node_relations(logic_chain)
         logic_chain = await self._enrich_logic_node_citations(logic_chain, segments_by_id)
         coverage_report = self._build_coverage_report(logic_chain.get("research_narrative", {}), segments_by_id)
 

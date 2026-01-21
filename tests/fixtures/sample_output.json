@@ -38,7 +38,37 @@
         "evidence_segment_ids": [
           "S0001"
         ],
-        "citations": []
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "BS1",
+            "value": "Prior work highlights scaling challenges in widget architectures.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
+      }
+    ],
+    "state_of_art": [
+      {
+        "node_id": "SA1",
+        "value": "Recent studies apply neural widgets to cross-domain tasks.",
+        "evidence_segment_ids": [
+          "S0001"
+        ],
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "SAS1",
+            "value": "Existing models focus on narrow benchmarks.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
       }
     ],
     "research_gaps": [
@@ -46,9 +76,19 @@
         "node_id": "G1",
         "value": "Existing methods fail to generalize across domains.",
         "evidence_segment_ids": [
-          "S0002"
+          "S0001"
         ],
-        "citations": []
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "GS1",
+            "value": "There is limited evidence on robustness under domain shift.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
       }
     ],
     "research_questions": [
@@ -56,44 +96,200 @@
         "node_id": "Q1",
         "value": "Can neural widgets be made robust across domains?",
         "evidence_segment_ids": [
-          "S0002"
+          "S0001"
         ],
         "citations": []
       }
     ],
-    "hypotheses": [],
+    "research_objectives": [
+      {
+        "node_id": "O1",
+        "value": "The study aims to improve neural widget robustness across domains.",
+        "evidence_segment_ids": [
+          "S0001"
+        ],
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "OS1",
+            "value": "We seek to evaluate transfer performance across multiple datasets.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "node_id": "H1",
+        "value": "Widget regularization will improve cross-domain accuracy.",
+        "evidence_segment_ids": [
+          "S0001"
+        ],
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "HS1",
+            "value": "Regularization may reduce overfitting to source domains.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
+      }
+    ],
+    "background_hub": {
+      "node_id": "BH1",
+      "value": "研究背景汇总节点",
+      "evidence_segment_ids": [
+        "S0001"
+      ],
+      "citations": [],
+      "supports": [
+        {
+          "node_id": "BHS1",
+          "value": "背景补充说明：应用范围逐渐扩大。",
+          "evidence_segment_ids": [
+            "S0001"
+          ],
+          "citations": []
+        }
+      ]
+    },
+    "state_hub": {
+      "node_id": "SH1",
+      "value": "研究现状汇总节点",
+      "evidence_segment_ids": [
+        "S0001"
+      ],
+      "citations": []
+    },
+    "gap_hub": {
+      "node_id": "GH1",
+      "value": "研究缺口汇总节点",
+      "evidence_segment_ids": [
+        "S0001"
+      ],
+      "citations": []
+    },
+    "objective_hub": {
+      "node_id": "OH1",
+      "value": "研究目的汇总节点",
+      "evidence_segment_ids": [
+        "S0001"
+      ],
+      "citations": []
+    },
+    "hypothesis_hub": {
+      "node_id": "HH1",
+      "value": "研究假设汇总节点",
+      "evidence_segment_ids": [
+        "S0001"
+      ],
+      "citations": []
+    },
     "methods": {
       "main": {
         "node_id": "M1",
         "value": "We train a neural widget model and evaluate cross-domain transfer.",
         "evidence_segment_ids": [
-          "S0002"
+          "S0001"
         ],
-        "citations": []
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "MS1",
+            "value": "The training uses a shared encoder across domains.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
       },
-      "supports": []
+      "supports": [
+        {
+          "node_id": "MS2",
+          "value": "We adopt a staged optimization schedule.",
+          "evidence_segment_ids": [
+            "S0001"
+          ],
+          "citations": [],
+          "supports": [
+            {
+              "node_id": "MSS1",
+              "value": "Stage two introduces domain-adaptive regularization.",
+              "evidence_segment_ids": [
+                "S0001"
+              ],
+              "citations": []
+            }
+          ]
+        }
+      ]
     },
     "results": {
       "main": {
         "node_id": "R1",
         "value": "Our model improves accuracy by 5% across domains.",
         "evidence_segment_ids": [
-          "S0002"
+          "S0001"
         ],
-        "citations": []
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "RS1",
+            "value": "Performance gains are consistent across three datasets.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
       },
-      "supports": []
+      "supports": [
+        {
+          "node_id": "RS2",
+          "value": "Ablation studies confirm the importance of regularization.",
+          "evidence_segment_ids": [
+            "S0001"
+          ],
+          "citations": []
+        }
+      ]
     },
     "conclusions": {
       "main": {
         "node_id": "C1",
         "value": "Neural widgets can be generalized with our approach.",
         "evidence_segment_ids": [
-          "S0002"
+          "S0001"
         ],
-        "citations": []
+        "citations": [],
+        "supports": [
+          {
+            "node_id": "CS1",
+            "value": "The framework supports future cross-domain applications.",
+            "evidence_segment_ids": [
+              "S0001"
+            ],
+            "citations": []
+          }
+        ]
       },
-      "supports": []
+      "supports": [
+        {
+          "node_id": "CS2",
+          "value": "Future work will explore larger-scale deployments.",
+          "evidence_segment_ids": [
+            "S0001"
+          ],
+          "citations": []
+        }
+      ]
     },
     "logic_chains": [
       {
@@ -101,12 +297,15 @@
         "question_ids": [
           "Q1"
         ],
-        "hypothesis_ids": [],
+        "hypothesis_ids": [
+          "H1"
+        ],
         "steps": [
-          "B1",
-          "G1",
-          "Q1",
-          "O1",
+          "BH1",
+          "SH1",
+          "GH1",
+          "OH1",
+          "HH1",
           "M1",
           "R1",
           "C1"
@@ -116,14 +315,41 @@
         ]
       }
     ],
-    "research_objectives": [
+    "node_relations": [
       {
-        "node_id": "O1",
-        "value": "The study aims to improve neural widget robustness across domains.",
-        "evidence_segment_ids": [
-          "S0002"
-        ],
-        "citations": []
+        "from_id": "B1",
+        "to_id": "BH1",
+        "relation_type": "AGGREGATES_TO"
+      },
+      {
+        "from_id": "SA1",
+        "to_id": "SH1",
+        "relation_type": "AGGREGATES_TO"
+      },
+      {
+        "from_id": "G1",
+        "to_id": "GH1",
+        "relation_type": "AGGREGATES_TO"
+      },
+      {
+        "from_id": "O1",
+        "to_id": "OH1",
+        "relation_type": "AGGREGATES_TO"
+      },
+      {
+        "from_id": "H1",
+        "to_id": "HH1",
+        "relation_type": "AGGREGATES_TO"
+      },
+      {
+        "from_id": "SA1",
+        "to_id": "G1",
+        "relation_type": "LEADS_TO_GAP"
+      },
+      {
+        "from_id": "G1",
+        "to_id": "O1",
+        "relation_type": "MOTIVATES_OBJECTIVE"
       }
     ]
   },
@@ -134,7 +360,7 @@
         {
           "id": "1",
           "citation": "Zhang A. et al. (2020) Example Widgets Study.",
-          "doi": ""
+          "doi": "10.9999/example.2020.001"
         }
       ],
       "total_count": 1
