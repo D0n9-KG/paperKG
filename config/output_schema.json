@@ -571,7 +571,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Crossref ????????????"
+          "description": "Crossref 标题信息"
         },
         "dates": {
           "type": [
@@ -637,7 +637,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Crossref ??????"
+          "description": "Crossref 日期信息"
         },
         "language": {
           "type": [
@@ -704,7 +704,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -712,7 +712,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -724,18 +724,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -743,69 +743,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -815,7 +760,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "??????"
+          "description": "研究背景"
         },
         "research_gaps": {
           "type": "array",
@@ -828,7 +773,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -836,7 +781,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -848,18 +793,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -867,69 +812,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -939,7 +829,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "??????"
+          "description": "研究缺口"
         },
         "research_questions": {
           "type": "array",
@@ -952,7 +842,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -960,7 +850,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -972,18 +862,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -991,69 +881,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -1063,7 +898,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "??????"
+          "description": "研究问题"
         },
         "research_objectives": {
           "type": "array",
@@ -1076,7 +911,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -1084,7 +919,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -1096,18 +931,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -1115,69 +950,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -1187,7 +967,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "??????"
+          "description": "研究目的"
         },
         "hypotheses": {
           "type": "array",
@@ -1200,7 +980,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -1208,7 +988,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -1220,18 +1000,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -1239,69 +1019,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -1311,7 +1036,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "????"
+          "description": "研究假设"
         },
         "methods": {
           "type": "object",
@@ -1328,7 +1053,7 @@
                 },
                 "value": {
                   "type": "string",
-                  "description": "?????????"
+                  "description": "节点内容"
                 },
                 "evidence_segment_ids": {
                   "type": "array",
@@ -1336,7 +1061,7 @@
                     "type": "string"
                   },
                   "minItems": 1,
-                  "description": "????ID??"
+                  "description": "证据片段ID列表"
                 },
                 "citations": {
                   "type": "array",
@@ -1348,18 +1073,18 @@
                           "string",
                           "null"
                         ],
-                        "description": "??????"
+                        "description": "引用编号"
                       },
                       "citation_text": {
                         "type": [
                           "string",
                           "null"
                         ],
-                        "description": "??????????"
+                        "description": "引用文本"
                       },
                       "purpose": {
                         "type": "string",
-                        "description": "????????????????????"
+                        "description": "引用用途说明"
                       }
                     },
                     "required": [
@@ -1367,69 +1092,14 @@
                     ],
                     "additionalProperties": false
                   },
-                  "description": "????????"
+                  "description": "引用信息"
                 },
                 "supports": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "node_id": {
-                        "type": "string",
-                        "description": "Logic node id"
-                      },
-                      "value": {
-                        "type": "string",
-                        "description": "?????????"
-                      },
-                      "evidence_segment_ids": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "minItems": 1,
-                        "description": "????ID??"
-                      },
-                      "citations": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "citation_id": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????"
-                            },
-                            "citation_text": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????????"
-                            },
-                            "purpose": {
-                              "type": "string",
-                              "description": "????????????????????"
-                            }
-                          },
-                          "required": [
-                            "purpose"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "description": "????????"
-                      }
-                    },
-                    "required": [
-                      "node_id",
-                      "value",
-                      "evidence_segment_ids"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/$defs/logic_node"
                   },
-                  "description": "????"
+                  "description": "支持信息"
                 }
               },
               "required": [
@@ -1442,126 +1112,9 @@
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  },
-                  "supports": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "node_id": {
-                          "type": "string",
-                          "description": "Logic node id"
-                        },
-                        "value": {
-                          "type": "string",
-                          "description": "?????????"
-                        },
-                        "evidence_segment_ids": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "minItems": 1,
-                          "description": "????ID??"
-                        },
-                        "citations": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "citation_id": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????"
-                              },
-                              "citation_text": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????????"
-                              },
-                              "purpose": {
-                                "type": "string",
-                                "description": "????????????????????"
-                              }
-                            },
-                            "required": [
-                              "purpose"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "description": "????????"
-                        }
-                      },
-                      "required": [
-                        "node_id",
-                        "value",
-                        "evidence_segment_ids"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "???????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -1585,7 +1138,7 @@
                 },
                 "value": {
                   "type": "string",
-                  "description": "?????????"
+                  "description": "节点内容"
                 },
                 "evidence_segment_ids": {
                   "type": "array",
@@ -1593,7 +1146,7 @@
                     "type": "string"
                   },
                   "minItems": 1,
-                  "description": "????ID??"
+                  "description": "证据片段ID列表"
                 },
                 "citations": {
                   "type": "array",
@@ -1605,18 +1158,18 @@
                           "string",
                           "null"
                         ],
-                        "description": "??????"
+                        "description": "引用编号"
                       },
                       "citation_text": {
                         "type": [
                           "string",
                           "null"
                         ],
-                        "description": "??????????"
+                        "description": "引用文本"
                       },
                       "purpose": {
                         "type": "string",
-                        "description": "????????????????????"
+                        "description": "引用用途说明"
                       }
                     },
                     "required": [
@@ -1624,69 +1177,14 @@
                     ],
                     "additionalProperties": false
                   },
-                  "description": "????????"
+                  "description": "引用信息"
                 },
                 "supports": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "node_id": {
-                        "type": "string",
-                        "description": "Logic node id"
-                      },
-                      "value": {
-                        "type": "string",
-                        "description": "?????????"
-                      },
-                      "evidence_segment_ids": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "minItems": 1,
-                        "description": "????ID??"
-                      },
-                      "citations": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "citation_id": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????"
-                            },
-                            "citation_text": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????????"
-                            },
-                            "purpose": {
-                              "type": "string",
-                              "description": "????????????????????"
-                            }
-                          },
-                          "required": [
-                            "purpose"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "description": "????????"
-                      }
-                    },
-                    "required": [
-                      "node_id",
-                      "value",
-                      "evidence_segment_ids"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/$defs/logic_node"
                   },
-                  "description": "????"
+                  "description": "支持信息"
                 }
               },
               "required": [
@@ -1699,126 +1197,9 @@
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  },
-                  "supports": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "node_id": {
-                          "type": "string",
-                          "description": "Logic node id"
-                        },
-                        "value": {
-                          "type": "string",
-                          "description": "?????????"
-                        },
-                        "evidence_segment_ids": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "minItems": 1,
-                          "description": "????ID??"
-                        },
-                        "citations": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "citation_id": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????"
-                              },
-                              "citation_text": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????????"
-                              },
-                              "purpose": {
-                                "type": "string",
-                                "description": "????????????????????"
-                              }
-                            },
-                            "required": [
-                              "purpose"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "description": "????????"
-                        }
-                      },
-                      "required": [
-                        "node_id",
-                        "value",
-                        "evidence_segment_ids"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "???????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -1842,7 +1223,7 @@
                 },
                 "value": {
                   "type": "string",
-                  "description": "?????????"
+                  "description": "节点内容"
                 },
                 "evidence_segment_ids": {
                   "type": "array",
@@ -1850,7 +1231,7 @@
                     "type": "string"
                   },
                   "minItems": 1,
-                  "description": "????ID??"
+                  "description": "证据片段ID列表"
                 },
                 "citations": {
                   "type": "array",
@@ -1862,18 +1243,18 @@
                           "string",
                           "null"
                         ],
-                        "description": "??????"
+                        "description": "引用编号"
                       },
                       "citation_text": {
                         "type": [
                           "string",
                           "null"
                         ],
-                        "description": "??????????"
+                        "description": "引用文本"
                       },
                       "purpose": {
                         "type": "string",
-                        "description": "????????????????????"
+                        "description": "引用用途说明"
                       }
                     },
                     "required": [
@@ -1881,69 +1262,14 @@
                     ],
                     "additionalProperties": false
                   },
-                  "description": "????????"
+                  "description": "引用信息"
                 },
                 "supports": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "node_id": {
-                        "type": "string",
-                        "description": "Logic node id"
-                      },
-                      "value": {
-                        "type": "string",
-                        "description": "?????????"
-                      },
-                      "evidence_segment_ids": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "minItems": 1,
-                        "description": "????ID??"
-                      },
-                      "citations": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "citation_id": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????"
-                            },
-                            "citation_text": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "description": "??????????"
-                            },
-                            "purpose": {
-                              "type": "string",
-                              "description": "????????????????????"
-                            }
-                          },
-                          "required": [
-                            "purpose"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "description": "????????"
-                      }
-                    },
-                    "required": [
-                      "node_id",
-                      "value",
-                      "evidence_segment_ids"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/$defs/logic_node"
                   },
-                  "description": "????"
+                  "description": "支持信息"
                 }
               },
               "required": [
@@ -1956,126 +1282,9 @@
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  },
-                  "supports": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "node_id": {
-                          "type": "string",
-                          "description": "Logic node id"
-                        },
-                        "value": {
-                          "type": "string",
-                          "description": "?????????"
-                        },
-                        "evidence_segment_ids": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "minItems": 1,
-                          "description": "????ID??"
-                        },
-                        "citations": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "citation_id": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????"
-                              },
-                              "citation_text": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "??????????"
-                              },
-                              "purpose": {
-                                "type": "string",
-                                "description": "????????????????????"
-                              }
-                            },
-                            "required": [
-                              "purpose"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "description": "????????"
-                        }
-                      },
-                      "required": [
-                        "node_id",
-                        "value",
-                        "evidence_segment_ids"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "???????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2091,7 +1300,7 @@
             "properties": {
               "chain_id": {
                 "type": "string",
-                "description": "???ID"
+                "description": "说明"
               },
               "question_ids": {
                 "type": "array",
@@ -2124,7 +1333,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "?????/??????????"
+          "description": "逻辑链条"
         },
         "state_of_art": {
           "type": "array",
@@ -2137,7 +1346,7 @@
               },
               "value": {
                 "type": "string",
-                "description": "?????????"
+                "description": "节点内容"
               },
               "evidence_segment_ids": {
                 "type": "array",
@@ -2145,7 +1354,7 @@
                   "type": "string"
                 },
                 "minItems": 1,
-                "description": "????ID??"
+                "description": "证据片段ID列表"
               },
               "citations": {
                 "type": "array",
@@ -2157,18 +1366,18 @@
                         "string",
                         "null"
                       ],
-                      "description": "??????"
+                      "description": "引用编号"
                     },
                     "citation_text": {
                       "type": [
                         "string",
                         "null"
                       ],
-                      "description": "??????????"
+                      "description": "引用文本"
                     },
                     "purpose": {
                       "type": "string",
-                      "description": "????????????????????"
+                      "description": "引用用途说明"
                     }
                   },
                   "required": [
@@ -2176,69 +1385,14 @@
                   ],
                   "additionalProperties": false
                 },
-                "description": "????????"
+                "description": "引用信息"
               },
               "supports": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "node_id": {
-                      "type": "string",
-                      "description": "Logic node id"
-                    },
-                    "value": {
-                      "type": "string",
-                      "description": "?????????"
-                    },
-                    "evidence_segment_ids": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "description": "????ID??"
-                    },
-                    "citations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "citation_id": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????"
-                          },
-                          "citation_text": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "??????????"
-                          },
-                          "purpose": {
-                            "type": "string",
-                            "description": "????????????????????"
-                          }
-                        },
-                        "required": [
-                          "purpose"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "????????"
-                    }
-                  },
-                  "required": [
-                    "node_id",
-                    "value",
-                    "evidence_segment_ids"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/$defs/logic_node"
                 },
-                "description": "????"
+                "description": "支持信息"
               }
             },
             "required": [
@@ -2248,7 +1402,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "????"
+          "description": "研究现状"
         },
         "background_hub": {
           "type": [
@@ -2262,7 +1416,7 @@
             },
             "value": {
               "type": "string",
-              "description": "?????????"
+              "description": "节点内容"
             },
             "evidence_segment_ids": {
               "type": "array",
@@ -2270,7 +1424,7 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "????ID??"
+              "description": "证据片段ID列表"
             },
             "citations": {
               "type": "array",
@@ -2282,18 +1436,18 @@
                       "string",
                       "null"
                     ],
-                    "description": "??????"
+                    "description": "引用编号"
                   },
                   "citation_text": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "description": "??????????"
+                    "description": "引用文本"
                   },
                   "purpose": {
                     "type": "string",
-                    "description": "????????????????????"
+                    "description": "引用用途说明"
                   }
                 },
                 "required": [
@@ -2301,69 +1455,14 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "????????"
+              "description": "引用信息"
             },
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2372,7 +1471,7 @@
             "evidence_segment_ids"
           ],
           "additionalProperties": false,
-          "description": "????"
+          "description": "研究背景汇总节点"
         },
         "state_hub": {
           "type": [
@@ -2386,7 +1485,7 @@
             },
             "value": {
               "type": "string",
-              "description": "?????????"
+              "description": "节点内容"
             },
             "evidence_segment_ids": {
               "type": "array",
@@ -2394,7 +1493,7 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "????ID??"
+              "description": "证据片段ID列表"
             },
             "citations": {
               "type": "array",
@@ -2406,18 +1505,18 @@
                       "string",
                       "null"
                     ],
-                    "description": "??????"
+                    "description": "引用编号"
                   },
                   "citation_text": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "description": "??????????"
+                    "description": "引用文本"
                   },
                   "purpose": {
                     "type": "string",
-                    "description": "????????????????????"
+                    "description": "引用用途说明"
                   }
                 },
                 "required": [
@@ -2425,69 +1524,14 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "????????"
+              "description": "引用信息"
             },
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2496,7 +1540,7 @@
             "evidence_segment_ids"
           ],
           "additionalProperties": false,
-          "description": "????"
+          "description": "研究现状汇总节点"
         },
         "gap_hub": {
           "type": [
@@ -2510,7 +1554,7 @@
             },
             "value": {
               "type": "string",
-              "description": "?????????"
+              "description": "节点内容"
             },
             "evidence_segment_ids": {
               "type": "array",
@@ -2518,7 +1562,7 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "????ID??"
+              "description": "证据片段ID列表"
             },
             "citations": {
               "type": "array",
@@ -2530,18 +1574,18 @@
                       "string",
                       "null"
                     ],
-                    "description": "??????"
+                    "description": "引用编号"
                   },
                   "citation_text": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "description": "??????????"
+                    "description": "引用文本"
                   },
                   "purpose": {
                     "type": "string",
-                    "description": "????????????????????"
+                    "description": "引用用途说明"
                   }
                 },
                 "required": [
@@ -2549,69 +1593,14 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "????????"
+              "description": "引用信息"
             },
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2620,7 +1609,7 @@
             "evidence_segment_ids"
           ],
           "additionalProperties": false,
-          "description": "????"
+          "description": "研究缺口汇总节点"
         },
         "objective_hub": {
           "type": [
@@ -2634,7 +1623,7 @@
             },
             "value": {
               "type": "string",
-              "description": "?????????"
+              "description": "节点内容"
             },
             "evidence_segment_ids": {
               "type": "array",
@@ -2642,7 +1631,7 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "????ID??"
+              "description": "证据片段ID列表"
             },
             "citations": {
               "type": "array",
@@ -2654,18 +1643,18 @@
                       "string",
                       "null"
                     ],
-                    "description": "??????"
+                    "description": "引用编号"
                   },
                   "citation_text": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "description": "??????????"
+                    "description": "引用文本"
                   },
                   "purpose": {
                     "type": "string",
-                    "description": "????????????????????"
+                    "description": "引用用途说明"
                   }
                 },
                 "required": [
@@ -2673,69 +1662,14 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "????????"
+              "description": "引用信息"
             },
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2744,7 +1678,7 @@
             "evidence_segment_ids"
           ],
           "additionalProperties": false,
-          "description": "????"
+          "description": "研究目的汇总节点"
         },
         "hypothesis_hub": {
           "type": [
@@ -2758,7 +1692,7 @@
             },
             "value": {
               "type": "string",
-              "description": "?????????"
+              "description": "节点内容"
             },
             "evidence_segment_ids": {
               "type": "array",
@@ -2766,7 +1700,7 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "????ID??"
+              "description": "证据片段ID列表"
             },
             "citations": {
               "type": "array",
@@ -2778,18 +1712,18 @@
                       "string",
                       "null"
                     ],
-                    "description": "??????"
+                    "description": "引用编号"
                   },
                   "citation_text": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "description": "??????????"
+                    "description": "引用文本"
                   },
                   "purpose": {
                     "type": "string",
-                    "description": "????????????????????"
+                    "description": "引用用途说明"
                   }
                 },
                 "required": [
@@ -2797,69 +1731,14 @@
                 ],
                 "additionalProperties": false
               },
-              "description": "????????"
+              "description": "引用信息"
             },
             "supports": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "node_id": {
-                    "type": "string",
-                    "description": "Logic node id"
-                  },
-                  "value": {
-                    "type": "string",
-                    "description": "?????????"
-                  },
-                  "evidence_segment_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "????ID??"
-                  },
-                  "citations": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "citation_id": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????"
-                        },
-                        "citation_text": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "description": "??????????"
-                        },
-                        "purpose": {
-                          "type": "string",
-                          "description": "????????????????????"
-                        }
-                      },
-                      "required": [
-                        "purpose"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "????????"
-                  }
-                },
-                "required": [
-                  "node_id",
-                  "value",
-                  "evidence_segment_ids"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/logic_node"
               },
-              "description": "????"
+              "description": "支持信息"
             }
           },
           "required": [
@@ -2868,7 +1747,7 @@
             "evidence_segment_ids"
           ],
           "additionalProperties": false,
-          "description": "????"
+          "description": "研究假设汇总节点"
         },
         "node_relations": {
           "type": "array",
@@ -2892,7 +1771,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "??????"
+          "description": "节点关系"
         }
       },
       "required": [
@@ -3029,5 +1908,72 @@
     "research_narrative",
     "multimedia_content"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "logic_node": {
+      "type": "object",
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "description": "Logic node id"
+        },
+        "value": {
+          "type": "string",
+          "description": "节点内容"
+        },
+        "evidence_segment_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "证据片段ID列表"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "citation_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "引用编号"
+              },
+              "citation_text": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "引用文本"
+              },
+              "purpose": {
+                "type": "string",
+                "description": "引用用途说明"
+              }
+            },
+            "required": [
+              "purpose"
+            ],
+            "additionalProperties": false
+          },
+          "description": "引用信息"
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/logic_node"
+          },
+          "description": "支持信息"
+        }
+      },
+      "required": [
+        "node_id",
+        "value",
+        "evidence_segment_ids"
+      ],
+      "additionalProperties": false
+    }
+  }
 }

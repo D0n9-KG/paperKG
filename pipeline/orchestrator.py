@@ -649,12 +649,108 @@ class PaperKGExtractor:
 
         return False
 
+    def _normalize_multimedia_content(self, multimedia: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(multimedia, dict):
+            multimedia = {}
+
+        # Normalize images
+        images = multimedia.get("images")
+        if not isinstance(images, dict):
+            images = {}
+        cleaned_images: Dict[str, List[Dict[str, Any]]] = {}
+        for key, items in images.items():
+            if not isinstance(items, list):
+                continue
+            cleaned_list: List[Dict[str, Any]] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                path = item.get("path")
+                caption = item.get("caption")
+                if path is not None and not isinstance(path, str):
+                    path = str(path)
+                if caption is not None and not isinstance(caption, str):
+                    caption = str(caption)
+                path = (path or "").strip()
+                caption = (caption or "").strip()
+                if not path and not caption:
+                    continue
+                cleaned_list.append({"path": path, "caption": caption})
+            if cleaned_list:
+                cleaned_images[str(key)] = cleaned_list
+        multimedia["images"] = cleaned_images
+
+        # Normalize references
+        references = multimedia.get("references")
+        if not isinstance(references, dict):
+            references = {}
+        ref_list = references.get("reference_list")
+        if not isinstance(ref_list, list):
+            ref_list = []
+        cleaned_refs: List[Dict[str, Any]] = []
+        for item in ref_list:
+            if not isinstance(item, dict):
+                continue
+            rid = item.get("id")
+            citation = item.get("citation")
+            doi = item.get("doi")
+            if rid is not None and not isinstance(rid, str):
+                rid = str(rid)
+            if citation is not None and not isinstance(citation, str):
+                citation = str(citation)
+            if doi is not None and not isinstance(doi, str):
+                doi = str(doi)
+            rid = (rid or "").strip()
+            citation = (citation or "").strip()
+            doi = (doi or "").strip()
+            if not rid and not citation and not doi:
+                continue
+            cleaned_refs.append({"id": rid, "citation": citation, "doi": doi})
+        references["reference_list"] = cleaned_refs
+        references["total_count"] = len(cleaned_refs)
+        multimedia["references"] = references
+
+        # Normalize formulas
+        formulas = multimedia.get("formulas")
+        if not isinstance(formulas, dict):
+            formulas = {}
+        formula_list = formulas.get("formula_list")
+        if not isinstance(formula_list, list):
+            formula_list = []
+        cleaned_formulas: List[Dict[str, Any]] = []
+        for item in formula_list:
+            if not isinstance(item, dict):
+                continue
+            number = item.get("formula_number")
+            content = item.get("latex_content")
+            desc = item.get("description")
+            if number is not None and not isinstance(number, str):
+                number = str(number)
+            if content is not None and not isinstance(content, str):
+                content = str(content)
+            if desc is not None and not isinstance(desc, str):
+                desc = str(desc)
+            number = (number or "").strip()
+            content = (content or "").strip()
+            if not number or not content:
+                continue
+            cleaned_item = {"formula_number": number, "latex_content": content}
+            if desc:
+                cleaned_item["description"] = desc.strip()
+            cleaned_formulas.append(cleaned_item)
+        formulas["formula_list"] = cleaned_formulas
+        formulas["total_count"] = len(cleaned_formulas)
+        multimedia["formulas"] = formulas
+
+        return multimedia
+
     async def _extract_multimedia(self, paper_text: str) -> Dict[str, Any]:
         try:
             multimedia = await self._call_agent('multimedia_content', MULTIMEDIA_CONTENT_PROMPT_BASE, paper_text, strict_json=True)
         except Exception as exc:
             logger.warning(f"Multimedia extraction failed: {exc}")
             multimedia = {}
+        multimedia = self._normalize_multimedia_content(multimedia)
 
         if self.multimedia_cfg.get('retry_if_empty', True) and self._multimedia_incomplete(multimedia, paper_text):
             logger.warning("Multimedia incomplete, retrying once.")
@@ -662,6 +758,7 @@ class PaperKGExtractor:
                 multimedia = await self._call_agent('multimedia_content', MULTIMEDIA_CONTENT_PROMPT_BASE, paper_text, strict_json=True)
             except Exception as exc:
                 logger.warning(f"Multimedia retry failed: {exc}")
+            multimedia = self._normalize_multimedia_content(multimedia)
         return multimedia
 
     async def _extract_research_narrative(
@@ -1101,7 +1198,7 @@ class PaperKGExtractor:
         return repaired if repaired is not None else original
 
     @staticmethod
-    def _split_sentences(text: str) -> List[str]:
+    def _split_sentences_plain(text: str) -> List[str]:
         if not text:
             return []
         parts = re.split(r"[。！？!?；;\\n]+", text)
@@ -1144,7 +1241,7 @@ class PaperKGExtractor:
             if not isinstance(segment_map, list):
                 segment_map = []
                 if isinstance(value, str) and value.strip():
-                    sentences = self._split_sentences(value)
+                    sentences = self._split_sentences_plain(value)
                     excerpt = text if isinstance(text, str) else ""
                     segment_map = [
                         {"value_segment": sentence, "excerpt": excerpt}
